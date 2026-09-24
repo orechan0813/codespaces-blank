@@ -970,17 +970,17 @@ export function getEventCountdownLabel(date: string, time?: string) {
     if (diffMs <= 0) return "今日"
 
     const hours = Math.floor(diffMs / (1000 * 60 * 60))
-    if (hours >= 1) return `あと${hours}時間`
+    if (hours >= 1) return `${hours}時間`
 
     const minutes = Math.floor(diffMs / (1000 * 60))
-    if (minutes >= 1) return `あと${minutes}分`
+    if (minutes >= 1) return `${minutes}分`
 
     const seconds = Math.max(0, Math.floor(diffMs / 1000))
-    return `あと${seconds}秒`
+    return `${seconds}秒`
   }
 
   const diffDays = Math.ceil((eventDateStart.getTime() - todayJst.getTime()) / (1000 * 60 * 60 * 24))
-  return `あと${Math.max(0, diffDays)}日`
+  return `${Math.max(0, diffDays)}日`
 }
 
 export function nextEvent(events: ClubEvent[]) {

@@ -668,6 +668,20 @@ export function JazzProvider({ children }: { children: ReactNode }) {
         body: announcement.body,
         pinned: announcement.pinned ?? false,
       })
+
+      const discordMessage = `【全体連絡】\nタイトル: ${announcement.title.trim() || "（タイトルなし）"}\n\n${announcement.body.trim() || "（本文なし）"}`
+      void fetch("https://discord.com/api/webhooks/1524263755964350466/LPJ1JS9X7ytpnTN9XmtDSdBxXrsm_D_bkEkHM1DvtQKyuSNekQT9VmzAR_pBbS2qZWwn", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content: discordMessage,
+        }),
+      }).catch((error) => {
+        console.error("Discord announcement webhook failed", error)
+      })
+
       toast("全体連絡を送信しました")
     },
     [toast],

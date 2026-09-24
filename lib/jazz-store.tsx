@@ -515,7 +515,7 @@ export function JazzProvider({ children }: { children: ReactNode }) {
       if (memberRows.length > 0) setMembers(memberRows)
       setEvents(eventRows)
       setPractice(practiceRows)
-      setAnnouncements(announcementRows)
+      setAnnouncements(sortAnnouncements(announcementRows))
       if (lostItemRows.length > 0) setLostItems(lostItemRows)
       if (sheetRows.length > 0) setSheets(sheetRows)
       if (diaryRows.length > 0) setDiary(diaryRows)
@@ -660,7 +660,7 @@ export function JazzProvider({ children }: { children: ReactNode }) {
   const addAnnouncement = useCallback(
     (a: Omit<Announcement, "id" | "date">) => {
       const announcement = { ...a, id: uid(), date: iso(new Date()) }
-      setAnnouncements((prev) => [announcement, ...prev])
+      setAnnouncements((prev) => sortAnnouncements([announcement, ...prev]))
       void persistToSupabase("announcements", {
         id: announcement.id,
         date: announcement.date,
@@ -945,6 +945,42 @@ export function formatJPDate(isoDate: string) {
   const weekday = parts.find((part) => part.type === "weekday")?.value ?? ""
 
   return `${month}月${day}日 (${weekday})`
+}
+
+export function sortAnnouncements(announcements: Announcement[]) {
+  return [...announcements].sort((a, b) => {
+    if (a.pinned !== b.pinned) return Number(b.pinned) - Number(a.pinned)
+
+    const aTime = new Date(`${a.date}T00:00:00+09:00`).getTime()
+    const bTime = new Date(`${b.date}T00:00:00+09:00`).getTime()
+    return bTime - aTime
+  })
+}
+
+export function getEventCountdownLabel(date: string, time?: string) {
+  const now = new Date()
+  const todayJst = new Date(`${iso(now)}T00:00:00+09:00`)
+  const eventDateStart = new Date(`${date}T00:00:00+09:00`)
+  const sameDay = date === iso(now)
+
+  if (sameDay) {
+    if (!time) return "今日"
+
+    const diffMs = new Date(`${date}T${time}:00+09:00`).getTime() - now.getTime()
+    if (diffMs <= 0) return "今日"
+
+    const hours = Math.floor(diffMs / (1000 * 60 * 60))
+    if (hours >= 1) return `あと${hours}時間`
+
+    const minutes = Math.floor(diffMs / (1000 * 60))
+    if (minutes >= 1) return `あと${minutes}分`
+
+    const seconds = Math.max(0, Math.floor(diffMs / 1000))
+    return `あと${seconds}秒`
+  }
+
+  const diffDays = Math.ceil((eventDateStart.getTime() - todayJst.getTime()) / (1000 * 60 * 60 * 24))
+  return `あと${Math.max(0, diffDays)}日`
 }
 
 export function nextEvent(events: ClubEvent[]) {

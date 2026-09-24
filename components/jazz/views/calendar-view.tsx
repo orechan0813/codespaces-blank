@@ -18,14 +18,31 @@ const TYPE_LABEL: Record<ClubEvent["type"], string> = {
   practice: "練習",
 }
 
+function jstParts(d: Date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(d)
+
+  return {
+    year: Number(parts.find((part) => part.type === "year")?.value ?? "0"),
+    month: Number(parts.find((part) => part.type === "month")?.value ?? "1"),
+    day: Number(parts.find((part) => part.type === "day")?.value ?? "1"),
+  }
+}
+
 function ymd(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+  const { year, month, day } = jstParts(d)
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
 }
 
 export function CalendarView() {
-  const { events } = useJazz()
+  const { events, absences } = useJazz()
   const today = new Date()
-  const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
+  const todayParts = jstParts(today)
+  const [cursor, setCursor] = useState(new Date(todayParts.year, todayParts.month - 1, 1))
   const [selected, setSelected] = useState<string | null>(ymd(today))
 
   const year = cursor.getFullYear()
@@ -44,6 +61,7 @@ export function CalendarView() {
   }, {})
 
   const selectedEvents = selected ? (eventsByDate[selected] ?? []) : []
+  const selectedAbsences = selected ? absences.filter((a) => a.date === selected) : []
 
   return (
     <div className="space-y-6">
@@ -133,6 +151,7 @@ export function CalendarView() {
         <h3 className="mb-3 font-serif text-lg font-semibold text-foreground">
           {selected ? formatJPDate(selected) : "日付を選択"}
         </h3>
+
         {selectedEvents.length === 0 ? (
           <Panel className="flex items-center gap-2 text-sm text-muted-foreground">
             <Info className="size-4" /> この日に登録された予定はありません。
@@ -158,6 +177,31 @@ export function CalendarView() {
             ))}
           </div>
         )}
+
+        <div className="mt-5 rounded-2xl border border-destructive/40 bg-destructive/5 p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h4 className="font-serif text-base font-semibold text-destructive">本日の欠席・遅刻・早退届</h4>
+            <span className="rounded-full border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
+              {selectedAbsences.length}件
+            </span>
+          </div>
+
+          {selectedAbsences.length === 0 ? (
+            <p className="text-sm text-muted-foreground">この日の欠席連絡はまだありません。</p>
+          ) : (
+            <div className="space-y-2">
+              {selectedAbsences.map((absence) => (
+                <div key={absence.id} className="rounded-xl border border-destructive/30 bg-background/50 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-medium text-foreground">{absence.memberName}</p>
+                    <span className="text-xs text-destructive">{absence.reason}</span>
+                  </div>
+                  {absence.note ? <p className="mt-1 text-sm text-muted-foreground">{absence.note}</p> : null}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
     </div>
   )

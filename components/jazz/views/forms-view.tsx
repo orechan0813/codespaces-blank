@@ -98,7 +98,7 @@ function AbsenceForm() {
             ))}
           </div>
         </div>
-        {reason === "その他" && (
+        {reason === "その他（備考に記入）" && (
           <div>
             <label className={labelClass} htmlFor="abs-note">
               詳細（記述式）
@@ -112,7 +112,7 @@ function AbsenceForm() {
             />
           </div>
         )}
-        {reason !== "その他" && (
+        {reason !== "その他（備考に記入）" && (
           <div>
             <label className={labelClass} htmlFor="abs-note2">
               補足（任意）

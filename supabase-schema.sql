@@ -40,6 +40,17 @@ create table if not exists public.lost_items (
   date text not null
 );
 
+create table if not exists public.music_scores (
+  id text primary key,
+  title text not null,
+  composer text not null default '',
+  drive_link text not null default '',
+  youtube_url text not null default '',
+  audio_direct_url text not null default '',
+  duration text not null default '',
+  has_audio boolean not null default false
+);
+
 create table if not exists public.diary_entries (
   id text primary key,
   date text not null,

@@ -65,6 +65,8 @@ export type Sheet = {
   title: string
   composer: string
   driveLink: string
+  youtubeUrl: string
+  audioDirectUrl: string
   duration: string
   hasAudio: boolean
 }
@@ -118,7 +120,13 @@ const uid = () => {
   })
 }
 
-const iso = (d: Date) => d.toISOString().slice(0, 10)
+const iso = (d: Date) =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d)
 
 function dateFromNow(days: number) {
   const d = new Date()
@@ -222,11 +230,11 @@ const seedLost: LostItem[] = [
 ]
 
 const seedSheets: Sheet[] = [
-  { id: uid(), title: "Take the A Train", composer: "Billy Strayhorn", driveLink: "https://drive.google.com/", duration: "3:42", hasAudio: true },
-  { id: uid(), title: "Sing, Sing, Sing", composer: "Louis Prima", driveLink: "https://drive.google.com/", duration: "5:18", hasAudio: true },
-  { id: uid(), title: "In the Mood", composer: "Joe Garland", driveLink: "https://drive.google.com/", duration: "3:34", hasAudio: true },
-  { id: uid(), title: "Moanin'", composer: "Bobby Timmons", driveLink: "https://drive.google.com/", duration: "4:05", hasAudio: false },
-  { id: uid(), title: "Spain", composer: "Chick Corea", driveLink: "https://drive.google.com/", duration: "6:12", hasAudio: true },
+  { id: uid(), title: "Take the A Train", composer: "Billy Strayhorn", driveLink: "https://drive.google.com/", youtubeUrl: "", audioDirectUrl: "", duration: "3:42", hasAudio: true },
+  { id: uid(), title: "Sing, Sing, Sing", composer: "Louis Prima", driveLink: "https://drive.google.com/", youtubeUrl: "", audioDirectUrl: "", duration: "5:18", hasAudio: true },
+  { id: uid(), title: "In the Mood", composer: "Joe Garland", driveLink: "https://drive.google.com/", youtubeUrl: "", audioDirectUrl: "", duration: "3:34", hasAudio: true },
+  { id: uid(), title: "Moanin'", composer: "Bobby Timmons", driveLink: "https://drive.google.com/", youtubeUrl: "", audioDirectUrl: "", duration: "4:05", hasAudio: false },
+  { id: uid(), title: "Spain", composer: "Chick Corea", driveLink: "https://drive.google.com/", youtubeUrl: "", audioDirectUrl: "", duration: "6:12", hasAudio: true },
 ]
 
 const seedDiary: DiaryEntry[] = [
@@ -254,7 +262,7 @@ const seedDiary: DiaryEntry[] = [
 ]
 
 const seedAbsences: AbsenceReport[] = [
-  { id: uid(), memberName: "鈴木 美咲", date: dateFromNow(2), reason: "補習、FW等", note: "数学の補習のため15分遅刻します" },
+  { id: uid(), memberName: "鈴木 美咲", date: dateFromNow(2), reason: "習い事・塾", note: "数学の補習のため15分遅刻します" },
   { id: uid(), memberName: "高橋 大輝", date: dateFromNow(1), reason: "他部活に行く", note: "" },
 ]
 
@@ -350,6 +358,19 @@ function normalizeLostItem(row: Record<string, unknown>): LostItem {
   }
 }
 
+function normalizeSheet(row: Record<string, unknown>): Sheet {
+  return {
+    id: String(row.id ?? uid()),
+    title: String(row.title ?? ""),
+    composer: String(row.composer ?? ""),
+    driveLink: String(row.driveLink ?? row.drive_link ?? ""),
+    youtubeUrl: String(row.youtubeUrl ?? row.youtube_url ?? ""),
+    audioDirectUrl: String(row.audioDirectUrl ?? row.audio_direct_url ?? ""),
+    duration: String(row.duration ?? ""),
+    hasAudio: Boolean(row.hasAudio ?? row.has_audio ?? false),
+  }
+}
+
 function normalizeDiary(row: Record<string, unknown>): DiaryEntry {
   return {
     id: String(row.id ?? uid()),
@@ -382,7 +403,14 @@ function normalizeLostReport(row: Record<string, unknown>): LostReport {
 
 /* ------------------------------- context ---------------------------------- */
 
-export const ABSENCE_REASONS = ["他部活に行く", "病欠", "補習、FW等", "その他"] as const
+export const ABSENCE_REASONS = [
+  "公欠（大会・行事など）",
+  "体調不良・風邪",
+  "習い事・塾",
+  "家庭の都合",
+  "他部活に行く",
+  "その他（備考に記入）",
+] as const
 
 type Store = {
   currentUser: Member | null
@@ -470,12 +498,13 @@ export function JazzProvider({ children }: { children: ReactNode }) {
     let active = true
 
     const load = async () => {
-      const [memberRows, eventRows, practiceRows, announcementRows, lostItemRows, diaryRows, absenceRows, lostReportRows] = await Promise.all([
+      const [memberRows, eventRows, practiceRows, announcementRows, lostItemRows, sheetRows, diaryRows, absenceRows, lostReportRows] = await Promise.all([
         loadFromSupabase("members", normalizeMember),
         loadFromSupabase("club_events", normalizeEvent),
         loadFromSupabase("practice_items", normalizePractice),
         loadFromSupabase("announcements", normalizeAnnouncement),
         loadFromSupabase("lost_items", normalizeLostItem),
+        loadFromSupabase("music_scores", normalizeSheet),
         loadFromSupabase("diary_entries", normalizeDiary),
         loadFromSupabase("absence_reports", normalizeAbsence),
         loadFromSupabase("lost_reports", normalizeLostReport),
@@ -488,6 +517,7 @@ export function JazzProvider({ children }: { children: ReactNode }) {
       setPractice(practiceRows)
       setAnnouncements(announcementRows)
       if (lostItemRows.length > 0) setLostItems(lostItemRows)
+      if (sheetRows.length > 0) setSheets(sheetRows)
       if (diaryRows.length > 0) setDiary(diaryRows)
       if (absenceRows.length > 0) setAbsences(absenceRows)
       if (lostReportRows.length > 0) setLostReports(lostReportRows)
@@ -652,7 +682,18 @@ export function JazzProvider({ children }: { children: ReactNode }) {
   )
   const addSheet = useCallback(
     (s: Omit<Sheet, "id">) => {
-      setSheets((prev) => [...prev, { ...s, id: uid() }])
+      const sheet = { ...s, id: uid() }
+      setSheets((prev) => [...prev, sheet])
+      void persistToSupabase("music_scores", {
+        id: sheet.id,
+        title: sheet.title,
+        composer: sheet.composer,
+        drive_link: sheet.driveLink,
+        youtube_url: sheet.youtubeUrl,
+        audio_direct_url: sheet.audioDirectUrl,
+        duration: sheet.duration,
+        has_audio: sheet.hasAudio,
+      })
       toast("楽譜・音源を追加しました")
     },
     [toast],
@@ -660,6 +701,7 @@ export function JazzProvider({ children }: { children: ReactNode }) {
   const removeSheet = useCallback(
     (id: string) => {
       setSheets((prev) => prev.filter((x) => x.id !== id))
+      void deleteFromSupabase("music_scores", id)
       toast("楽譜・音源を削除しました", "danger")
     },
     [toast],
@@ -872,8 +914,23 @@ export function useJazz() {
 /* ------------------------------- utilities -------------------------------- */
 
 export function formatJPDate(isoDate: string) {
-  const d = new Date(isoDate + "T00:00:00")
-  return `${d.getMonth() + 1}月${d.getDate()}日 (${["日", "月", "火", "水", "木", "金", "土"][d.getDay()]})`
+  if (!isoDate) return ""
+
+  const d = new Date(`${isoDate}T00:00:00+09:00`)
+  if (Number.isNaN(d.getTime())) return isoDate
+
+  const parts = new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    month: "numeric",
+    day: "numeric",
+    weekday: "short",
+  }).formatToParts(d)
+
+  const month = parts.find((part) => part.type === "month")?.value ?? ""
+  const day = parts.find((part) => part.type === "day")?.value ?? ""
+  const weekday = parts.find((part) => part.type === "weekday")?.value ?? ""
+
+  return `${month}月${day}日 (${weekday})`
 }
 
 export function nextEvent(events: ClubEvent[]) {

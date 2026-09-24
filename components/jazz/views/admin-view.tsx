@@ -270,6 +270,8 @@ function LibraryAdmin() {
   const [composer, setComposer] = useState("")
   const [duration, setDuration] = useState("")
   const [driveLink, setDriveLink] = useState("")
+  const [youtubeUrl, setYoutubeUrl] = useState("")
+  const [audioDirectUrl, setAudioDirectUrl] = useState("")
   const [hasAudio, setHasAudio] = useState(true)
 
   return (
@@ -287,12 +289,16 @@ function LibraryAdmin() {
               composer: composer.trim() || "Unknown",
               duration: duration.trim() || "0:00",
               driveLink: driveLink.trim() || "https://drive.google.com/",
+              youtubeUrl: youtubeUrl.trim(),
+              audioDirectUrl: audioDirectUrl.trim(),
               hasAudio,
             })
             setTitle("")
             setComposer("")
             setDuration("")
             setDriveLink("")
+            setYoutubeUrl("")
+            setAudioDirectUrl("")
             setHasAudio(true)
           }}
         >
@@ -302,6 +308,18 @@ function LibraryAdmin() {
             <input className={fieldClass} placeholder="長さ（例：3:42）" value={duration} onChange={(e) => setDuration(e.target.value)} />
             <input className={fieldClass} placeholder="Drive リンク" value={driveLink} onChange={(e) => setDriveLink(e.target.value)} />
           </div>
+          <input
+            className={fieldClass}
+            placeholder="YouTube リンク"
+            value={youtubeUrl}
+            onChange={(e) => setYoutubeUrl(e.target.value)}
+          />
+          <input
+            className={fieldClass}
+            placeholder="音源の直リンク URL (Google Driveなど)"
+            value={audioDirectUrl}
+            onChange={(e) => setAudioDirectUrl(e.target.value)}
+          />
           <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
             <Toggle checked={hasAudio} onChange={() => setHasAudio((p) => !p)} />
             音源データあり

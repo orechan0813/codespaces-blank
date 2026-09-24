@@ -459,6 +459,7 @@ type Store = {
 export const ADMIN_PASSWORD = "jazz2025"
 
 const JazzContext = createContext<Store | null>(null)
+const STORAGE_KEY = "jazz_hub_user"
 
 export function JazzProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<Member | null>(null)
@@ -521,6 +522,31 @@ export function JazzProvider({ children }: { children: ReactNode }) {
       if (diaryRows.length > 0) setDiary(diaryRows)
       if (absenceRows.length > 0) setAbsences(absenceRows)
       if (lostReportRows.length > 0) setLostReports(lostReportRows)
+
+      if (typeof window !== "undefined") {
+        const savedUser = window.localStorage.getItem(STORAGE_KEY)
+        if (savedUser) {
+          try {
+            const parsed = JSON.parse(savedUser) as Partial<Member>
+            const matched = memberRows.find((m) => m.id === parsed.id)
+            if (matched) {
+              setCurrentUser(matched)
+            } else if (parsed.name && parsed.grade && parsed.part1 && parsed.part2 !== undefined) {
+              const restoredUser: Member = {
+                id: String(parsed.id ?? uid()),
+                name: String(parsed.name),
+                grade: (parsed.grade as Grade) ?? "1年",
+                part1: String(parsed.part1),
+                part2: String(parsed.part2 ?? ""),
+                isAdmin: Boolean(parsed.isAdmin),
+              }
+              setCurrentUser(restoredUser)
+            }
+          } catch {
+            window.localStorage.removeItem(STORAGE_KEY)
+          }
+        }
+      }
     }
 
     void load()
@@ -534,6 +560,9 @@ export function JazzProvider({ children }: { children: ReactNode }) {
     const member: Member = { ...m, id: uid(), isAdmin: false }
     setMembers((prev) => [...prev, member])
     setCurrentUser(member)
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(member))
+    }
     void persistToSupabase("members", {
       id: member.id,
       name: member.name,
@@ -547,12 +576,22 @@ export function JazzProvider({ children }: { children: ReactNode }) {
   const login = useCallback(
     (id: string) => {
       const m = members.find((x) => x.id === id)
-      if (m) setCurrentUser(m)
+      if (m) {
+        setCurrentUser(m)
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(m))
+        }
+      }
     },
     [members],
   )
 
-  const logout = useCallback(() => setCurrentUser(null), [])
+  const logout = useCallback(() => {
+    setCurrentUser(null)
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(STORAGE_KEY)
+    }
+  }, [])
 
   const enterAdminMode = useCallback((password: string) => {
     if (password !== ADMIN_PASSWORD) return false

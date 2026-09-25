@@ -3,15 +3,15 @@
 import { useEffect, useState } from "react"
 import { getEventCountdownLabel } from "@/lib/jazz-store"
 
-export function Countdown({ date, time }: { date: string; time?: string }) {
-  const [label, setLabel] = useState(() => getEventCountdownLabel(date, time))
+export function Countdown({ date, startTime }: { date: string; startTime?: string }) {
+  const [label, setLabel] = useState(() => getEventCountdownLabel(date, startTime))
 
   useEffect(() => {
-    setLabel(getEventCountdownLabel(date, time))
-    const id = setInterval(() => setLabel(getEventCountdownLabel(date, time)), 1000)
+    setLabel(getEventCountdownLabel(date, startTime))
+    const id = setInterval(() => setLabel(getEventCountdownLabel(date, startTime)), 1000)
     return () => clearInterval(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [date, time])
+  }, [date, startTime])
 
   return (
     <div className="rounded-xl border border-primary/20 bg-background/40 px-4 py-3 backdrop-blur">

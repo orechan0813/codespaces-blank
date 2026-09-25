@@ -164,10 +164,10 @@ export function CalendarView() {
                   <Tag className={cn(e.type === "contest" && "border-destructive/30 bg-destructive/10 text-destructive")}>
                     {TYPE_LABEL[e.type]}
                   </Tag>
-                  {e.time && (
+                  {e.startTime && (
                     <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                       <Clock className="size-3.5 text-primary" />
-                      {e.time}〜
+                      {e.startTime}〜{e.endTime ?? ""}
                     </span>
                   )}
                 </div>

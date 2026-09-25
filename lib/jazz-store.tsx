@@ -30,7 +30,8 @@ export type EventType = "live" | "contest" | "practice"
 export type ClubEvent = {
   id: string
   date: string // YYYY-MM-DD
-  time?: string
+  startTime?: string
+  endTime?: string
   title: string
   detail: string
   type: EventType
@@ -161,7 +162,8 @@ const seedEvents: ClubEvent[] = [
   {
     id: uid(),
     date: dateFromNow(9),
-    time: "18:00",
+    startTime: "18:00",
+    endTime: "20:30",
     title: "定期ライブ vol.12「Midnight Groove」",
     detail: "船橋市民文化ホール 大ホール。集合16:00、リハーサル16:30〜。",
     type: "live",
@@ -169,7 +171,8 @@ const seedEvents: ClubEvent[] = [
   {
     id: uid(),
     date: dateFromNow(24),
-    time: "10:00",
+    startTime: "10:00",
+    endTime: "16:00",
     title: "県高校ビッグバンドコンテスト 予選",
     detail: "千葉県文化会館。演奏曲は課題曲＋自由曲の2曲。",
     type: "contest",
@@ -177,7 +180,8 @@ const seedEvents: ClubEvent[] = [
   {
     id: uid(),
     date: dateFromNow(2),
-    time: "13:00",
+    startTime: "13:00",
+    endTime: "17:00",
     title: "合奏練習（全体）",
     detail: "音楽室。ライブ本番に向けた通し練習。",
     type: "practice",
@@ -185,7 +189,8 @@ const seedEvents: ClubEvent[] = [
   {
     id: uid(),
     date: dateFromNow(5),
-    time: "13:00",
+    startTime: "13:00",
+    endTime: "17:00",
     title: "セクション練習",
     detail: "サックス・金管・リズム隊で分かれて練習。",
     type: "practice",
@@ -321,7 +326,8 @@ function normalizeEvent(row: Record<string, unknown>): ClubEvent {
   return {
     id: String(row.id ?? uid()),
     date: String(row.date ?? ""),
-    time: row.time ? String(row.time) : undefined,
+    startTime: row.start_time ? String(row.start_time) : row.time ? String(row.time) : undefined,
+    endTime: row.end_time ? String(row.end_time) : undefined,
     title: String(row.title ?? ""),
     detail: String(row.detail ?? ""),
     type: (row.type as EventType) ?? "practice",
@@ -656,7 +662,8 @@ export function JazzProvider({ children }: { children: ReactNode }) {
       void persistToSupabase("club_events", {
         id: event.id,
         date: event.date,
-        time: event.time ?? "",
+        time: event.startTime ?? "",
+        end_time: event.endTime ?? "",
         title: event.title,
         detail: event.detail,
         type: event.type,
@@ -996,16 +1003,16 @@ export function sortAnnouncements(announcements: Announcement[]) {
   })
 }
 
-export function getEventCountdownLabel(date: string, time?: string) {
+export function getEventCountdownLabel(date: string, startTime?: string) {
   const now = new Date()
   const todayJst = new Date(`${iso(now)}T00:00:00+09:00`)
   const eventDateStart = new Date(`${date}T00:00:00+09:00`)
   const sameDay = date === iso(now)
 
   if (sameDay) {
-    if (!time) return "今日"
+    if (!startTime) return "今日"
 
-    const diffMs = new Date(`${date}T${time}:00+09:00`).getTime() - now.getTime()
+    const diffMs = new Date(`${date}T${startTime}:00+09:00`).getTime() - now.getTime()
     if (diffMs <= 0) return "今日"
 
     const hours = Math.floor(diffMs / (1000 * 60 * 60))

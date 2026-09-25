@@ -123,7 +123,8 @@ function ScheduleAdmin() {
   const { events, addEvent, removeEvent, practice, addPractice, removePractice } = useJazz()
   const [title, setTitle] = useState("")
   const [date, setDate] = useState("")
-  const [time, setTime] = useState("")
+  const [startTime, setStartTime] = useState("")
+  const [endTime, setEndTime] = useState("")
   const [type, setType] = useState<EventType>("practice")
   const [detail, setDetail] = useState("")
 
@@ -140,17 +141,28 @@ function ScheduleAdmin() {
           onSubmit={(e) => {
             e.preventDefault()
             if (!title.trim() || !date) return
-            addEvent({ title: title.trim(), date, time, type, detail: detail.trim() })
+            addEvent({ title: title.trim(), date, startTime, endTime, type, detail: detail.trim() })
             setTitle("")
             setDate("")
-            setTime("")
+            setStartTime("")
+            setEndTime("")
             setDetail("")
           }}
         >
           <input className={fieldClass} placeholder="イベント名" value={title} onChange={(e) => setTitle(e.target.value)} />
-          <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelClass}>日付</label>
             <input type="date" className={fieldClass} value={date} onChange={(e) => setDate(e.target.value)} />
-            <input type="time" className={fieldClass} value={time} onChange={(e) => setTime(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass}>開始時間</label>
+              <input type="time" className={fieldClass} value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+            </div>
+            <div>
+              <label className={labelClass}>終了時間</label>
+              <input type="time" className={fieldClass} value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+            </div>
           </div>
           <select className={fieldClass} value={type} onChange={(e) => setType(e.target.value as EventType)}>
             <option value="practice" className="bg-card">練習</option>
@@ -167,7 +179,7 @@ function ScheduleAdmin() {
           {[...events].sort((a, b) => a.date.localeCompare(b.date)).map((e) => (
             <Row key={e.id} onDelete={() => removeEvent(e.id)}>
               <p className="truncate text-sm font-medium text-foreground">{e.title}</p>
-              <p className="text-xs text-muted-foreground">{formatJPDate(e.date)}{e.time ? ` ${e.time}〜` : ""}</p>
+              <p className="text-xs text-muted-foreground">{formatJPDate(e.date)}{e.startTime ? ` ${e.startTime}〜${e.endTime ?? ""}` : ""}</p>
             </Row>
           ))}
         </div>

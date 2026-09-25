@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { CalendarDays, Clock, MapPin, Megaphone, PackageSearch, Pin } from "lucide-react"
 import { formatJPDate, nextEvent, useJazz } from "@/lib/jazz-store"
 import { Panel, SectionHeading, Tag } from "@/components/jazz/primitives"
@@ -13,8 +14,16 @@ const EVENT_LABEL: Record<string, string> = {
 }
 
 export function HomeView({ onNavigate }: { onNavigate: (k: "calendar" | "library" | "forms") => void }) {
-  const { currentUser, events, practice, announcements, lostItems } = useJazz()
+  const { currentUser, events, announcements, lostItems } = useJazz()
   const upcoming = nextEvent(events)
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date())
+  const todayEvents = events.filter((event) => event.date === today).sort((a, b) => (a.startTime ?? "").localeCompare(b.startTime ?? ""))
+  const [now, setNow] = useState(() => new Date())
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000)
+    return () => clearInterval(timer)
+  }, [])
 
   return (
     <div className="space-y-8">
@@ -44,10 +53,10 @@ export function HomeView({ onNavigate }: { onNavigate: (k: "calendar" | "library
                     <CalendarDays className="size-4 text-primary" />
                     {formatJPDate(upcoming.date)}
                   </span>
-                  {upcoming.time && (
+                  {upcoming.startTime && (
                     <span className="inline-flex items-center gap-1.5">
                       <Clock className="size-4 text-primary" />
-                      {upcoming.time}〜
+                      {upcoming.startTime}〜{upcoming.endTime ?? ""}
                     </span>
                   )}
                 </div>
@@ -58,7 +67,7 @@ export function HomeView({ onNavigate }: { onNavigate: (k: "calendar" | "library
           </div>
           {upcoming && (
             <div className="shrink-0">
-              <Countdown date={upcoming.date} time={upcoming.time} />
+              <Countdown date={upcoming.date} startTime={upcoming.startTime} />
             </div>
           )}
         </div>
@@ -97,26 +106,32 @@ export function HomeView({ onNavigate }: { onNavigate: (k: "calendar" | "library
             }
           />
           <Panel className="p-4">
-            <ol className="relative space-y-4 pl-5">
+            {todayEvents.length > 0 ? <ol className="relative space-y-4 pl-5">
               <span className="absolute left-[3px] top-1 h-[calc(100%-0.5rem)] w-px bg-border" />
-              {practice.map((p) => (
-                <li key={p.id} className="relative">
+              {todayEvents.map((event) => {
+                const start = event.startTime ? new Date(`${event.date}T${event.startTime}:00+09:00`) : null
+                const end = event.endTime ? new Date(`${event.date}T${event.endTime}:00+09:00`) : null
+                const isNow = Boolean(start && end && now >= start && now <= end)
+                return <li key={event.id} className="relative">
                   <span
                     className={cn(
                       "absolute -left-5 top-1.5 size-2 rounded-full ring-4 ring-card",
-                      p.title === "休憩" ? "bg-muted-foreground" : "bg-primary",
+                      "bg-primary",
                     )}
                   />
                   <div className="flex items-baseline justify-between gap-3">
-                    <p className="font-medium text-foreground">{p.title}</p>
+                    <p className="font-medium text-foreground">
+                      {event.title}
+                      {isNow && <span className="ml-2 rounded-full bg-primary px-2 py-0.5 text-[0.65rem] font-bold tracking-wider text-primary-foreground">NOW</span>}
+                    </p>
                     <span className="shrink-0 font-mono text-xs text-primary">
-                      {p.start}–{p.end_time}
+                      {event.startTime ?? ""}{event.endTime ? `–${event.endTime}` : ""}
                     </span>
                   </div>
-                  {p.note && <p className="text-xs text-muted-foreground">{p.note}</p>}
+                  {event.detail && <p className="text-xs text-muted-foreground">{event.detail}</p>}
                 </li>
-              ))}
-            </ol>
+              })}
+            </ol> : <p className="text-sm text-muted-foreground">本日の予定はありません。</p>}
           </Panel>
         </section>
       </div>

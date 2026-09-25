@@ -5,12 +5,6 @@ const DISCORD_WEBHOOK_URL =
   process.env.DISCORD_WEBHOOK_URL ||
   "https://discord.com/api/webhooks/1524263755964350466/LPJ1JS9X7ytpnTN9XmtDSdBxXrsm_D_bkEkHM1DvtQKyuSNekQT9VmzAR_pBbS2qZWwn"
 
-const MOBILE_APP_URL =
-  process.env.JAZZ_HUB_MOBILE_URL ||
-  process.env.NEXT_PUBLIC_APP_URL ||
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  "https://jazz-hub.vercel.app"
-
 function getJstDateString(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Tokyo",
@@ -88,13 +82,12 @@ export async function POST() {
   const formattedEvents = data
     .map((event) => {
       const title = event.title || "予定"
-      const time = event.time ? ` (${event.time})` : ""
       const detail = event.detail ? `\n${event.detail}` : ""
-      return `• ${title}${time}${detail}`
+      return `• ${title}${detail}`
     })
     .join("\n")
 
-  const content = `☀️【JAZZ HUB】今日の部活のお知らせ\n\n${formattedEvents}\n\n[JAZZ HUBを開く](${MOBILE_APP_URL})`
+  const content = `☀️ 今日の部活のお知らせ\n\n${formattedEvents}`
 
   try {
     await sendDiscordReminder(content)

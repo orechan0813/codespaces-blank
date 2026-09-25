@@ -1,17 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { CalendarDays, Clock, MapPin, Megaphone, PackageSearch, Pin } from "lucide-react"
+import { Clock, MapPin, Megaphone, PackageSearch, Pin } from "lucide-react"
 import { formatJPDate, nextEvent, useJazz } from "@/lib/jazz-store"
 import { Panel, SectionHeading, Tag } from "@/components/jazz/primitives"
 import { Countdown } from "@/components/jazz/countdown"
-import { cn } from "@/lib/utils"
-
-const EVENT_LABEL: Record<string, string> = {
-  live: "ライブ",
-  contest: "大会",
-  practice: "練習",
-}
 
 export function HomeView({ onNavigate }: { onNavigate: (k: "calendar" | "library" | "forms") => void }) {
   const { currentUser, events, announcements, lostItems } = useJazz()
@@ -37,44 +30,63 @@ export function HomeView({ onNavigate }: { onNavigate: (k: "calendar" | "library
       {/* Countdown hero */}
       <Panel className="relative overflow-hidden">
         <div className="pointer-events-none absolute -right-16 -top-16 size-56 rounded-full bg-primary/10 blur-3xl" />
-        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <div className="mb-2 flex items-center gap-2">
-              <Tag>{upcoming ? EVENT_LABEL[upcoming.type] : "予定"}</Tag>
-              <span className="text-xs text-muted-foreground">次のイベントまで</span>
+        <div className="relative space-y-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="mb-2 flex items-center gap-2">
+                <Tag>TODAY</Tag>
+                <span className="text-xs text-muted-foreground">本日の練習</span>
+              </div>
+              <h2 className="font-serif text-2xl font-semibold text-foreground">今日の予定</h2>
             </div>
-            {upcoming ? (
-              <>
-                <h2 className="text-balance font-serif text-2xl font-semibold text-foreground">
-                  {upcoming.title}
-                </h2>
-                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                  <span className="inline-flex items-center gap-1.5">
-                    <CalendarDays className="size-4 text-primary" />
-                    {formatJPDate(upcoming.date)}
-                  </span>
-                  {upcoming.startTime && (
-                    <span className="inline-flex items-center gap-1.5">
-                      <Clock className="size-4 text-primary" />
-                      {upcoming.startTime}〜{upcoming.endTime ?? ""}
-                    </span>
-                  )}
-                </div>
-              </>
-            ) : (
-              <h2 className="font-serif text-xl text-muted-foreground">予定はまだありません</h2>
+            {upcoming && (
+              <div className="shrink-0">
+                <span className="mb-1 block text-right text-xs text-muted-foreground">次のイベントまで</span>
+                <Countdown date={upcoming.date} startTime={upcoming.startTime} />
+              </div>
             )}
           </div>
-          {upcoming && (
-            <div className="shrink-0">
-              <Countdown date={upcoming.date} startTime={upcoming.startTime} />
-            </div>
+
+          {todayEvents.length > 0 ? (
+            <ol className="space-y-3">
+              {todayEvents.map((event) => {
+                const start = event.startTime ? new Date(`${event.date}T${event.startTime}:00+09:00`) : null
+                const end = event.endTime ? new Date(`${event.date}T${event.endTime}:00+09:00`) : null
+                const isNow = Boolean(start && end && now >= start && now <= end)
+
+                return (
+                  <li key={event.id} className="rounded-xl border border-border/80 bg-background/35 p-4">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-medium text-foreground">{event.title}</h3>
+                          {isNow && (
+                            <span className="rounded-full bg-primary px-2 py-0.5 text-[0.65rem] font-bold tracking-wider text-primary-foreground">
+                              NOW
+                            </span>
+                          )}
+                        </div>
+                        {event.detail && <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{event.detail}</p>}
+                      </div>
+                      {event.startTime && (
+                        <span className="inline-flex shrink-0 items-center gap-1.5 font-mono text-sm text-primary">
+                          <Clock className="size-4" />
+                          {event.startTime}〜{event.endTime ?? ""}
+                        </span>
+                      )}
+                    </div>
+                  </li>
+                )
+              })}
+            </ol>
+          ) : (
+            <p className="text-sm text-muted-foreground">本日の予定はありません。</p>
           )}
         </div>
       </Panel>
 
-      {/* Announcements + practice */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      {/* Announcements */}
+      <div>
         <section>
           <SectionHeading eyebrow="From Admin" title="全体連絡" />
           <div className="space-y-3">
@@ -92,48 +104,6 @@ export function HomeView({ onNavigate }: { onNavigate: (k: "calendar" | "library
           </div>
         </section>
 
-        <section>
-          <SectionHeading
-            eyebrow="Today"
-            title="本日の練習"
-            action={
-              <button
-                onClick={() => onNavigate("calendar")}
-                className="text-xs font-medium text-primary hover:underline"
-              >
-                予定表を見る
-              </button>
-            }
-          />
-          <Panel className="p-4">
-            {todayEvents.length > 0 ? <ol className="relative space-y-4 pl-5">
-              <span className="absolute left-[3px] top-1 h-[calc(100%-0.5rem)] w-px bg-border" />
-              {todayEvents.map((event) => {
-                const start = event.startTime ? new Date(`${event.date}T${event.startTime}:00+09:00`) : null
-                const end = event.endTime ? new Date(`${event.date}T${event.endTime}:00+09:00`) : null
-                const isNow = Boolean(start && end && now >= start && now <= end)
-                return <li key={event.id} className="relative">
-                  <span
-                    className={cn(
-                      "absolute -left-5 top-1.5 size-2 rounded-full ring-4 ring-card",
-                      "bg-primary",
-                    )}
-                  />
-                  <div className="flex items-baseline justify-between gap-3">
-                    <p className="font-medium text-foreground">
-                      {event.title}
-                      {isNow && <span className="ml-2 rounded-full bg-primary px-2 py-0.5 text-[0.65rem] font-bold tracking-wider text-primary-foreground">NOW</span>}
-                    </p>
-                    <span className="shrink-0 font-mono text-xs text-primary">
-                      {event.startTime ?? ""}{event.endTime ? `–${event.endTime}` : ""}
-                    </span>
-                  </div>
-                  {event.detail && <p className="text-xs text-muted-foreground">{event.detail}</p>}
-                </li>
-              })}
-            </ol> : <p className="text-sm text-muted-foreground">本日の予定はありません。</p>}
-          </Panel>
-        </section>
       </div>
 
       {/* Lost items */}

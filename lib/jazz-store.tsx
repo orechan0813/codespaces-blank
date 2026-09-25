@@ -294,7 +294,7 @@ async function persistToSupabase<T extends { id: string }>(table: string, row: T
   if (!supabase) return
   const { error } = await supabase.from(table).upsert(row, { onConflict: "id" })
   if (error) {
-    console.error(`Supabase save failed for ${table}`, error)
+    console.error(`Supabase save failed for ${table}`, JSON.stringify(error, null, 2)) // 👈 ここ！
   }
 }
 
@@ -326,7 +326,7 @@ function normalizeEvent(row: Record<string, unknown>): ClubEvent {
   return {
     id: String(row.id ?? uid()),
     date: String(row.date ?? ""),
-    startTime: row.start_time ? String(row.start_time) : row.time ? String(row.time) : undefined,
+    startTime: row.time ? String(row.time) : undefined,
     endTime: row.end_time ? String(row.end_time) : undefined,
     title: String(row.title ?? ""),
     detail: String(row.detail ?? ""),
@@ -662,7 +662,7 @@ export function JazzProvider({ children }: { children: ReactNode }) {
       void persistToSupabase("club_events", {
         id: event.id,
         date: event.date,
-        start_time: event.startTime ?? "",
+        time: event.startTime ?? "",
         end_time: event.endTime ?? "",
         title: event.title,
         detail: event.detail,

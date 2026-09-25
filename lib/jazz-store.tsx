@@ -662,7 +662,7 @@ export function JazzProvider({ children }: { children: ReactNode }) {
       void persistToSupabase("club_events", {
         id: event.id,
         date: event.date,
-        time: event.startTime ?? "",
+        start_time: event.startTime ?? "",
         end_time: event.endTime ?? "",
         title: event.title,
         detail: event.detail,

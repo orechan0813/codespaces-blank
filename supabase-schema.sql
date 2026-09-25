@@ -10,13 +10,14 @@ create table if not exists public.members (
 create table if not exists public.club_events (
   id text primary key,
   date text not null,
-  time text not null default '',
+  start_time text not null default '',
   end_time text not null default '',
   title text not null,
   detail text not null default '',
   type text not null default 'practice'
 );
 
+alter table public.club_events add column if not exists start_time text not null default '';
 alter table public.club_events add column if not exists end_time text not null default '';
 
 create table if not exists public.practice_items (

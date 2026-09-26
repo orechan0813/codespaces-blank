@@ -71,6 +71,15 @@ create table if not exists public.absence_reports (
   note text not null default ''
 );
 
+create table if not exists public.supply_requests (
+  id text primary key,
+  member_name text not null,
+  kind text not null default 'purchase',
+  item text not null,
+  reason text not null default '',
+  date text not null
+);
+
 create table if not exists public.lost_reports (
   id text primary key,
   member_name text not null,

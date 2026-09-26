@@ -30,7 +30,7 @@ export function getSupabaseSetupMessage() {
   return null
 }
 
-const requiredTables = ["members", "club_events", "practice_items", "announcements", "lost_items", "diary_entries", "absence_reports", "lost_reports"]
+const requiredTables = ["members", "club_events", "practice_items", "announcements", "lost_items", "diary_entries", "absence_reports", "supply_requests", "lost_reports"]
 
 export async function getSupabaseSchemaStatus() {
   if (!supabaseUrl || !supabaseAnonKey) {

@@ -15,7 +15,7 @@ const hours = Array.from({ length: 12 }, (_, index) => index + 1)
 const minuteMarks = Array.from({ length: 12 }, (_, index) => index * 5)
 
 function formatHour(hour: number) {
-  return String(hour % 12 || 12).padStart(2, "0")
+  return String(hour).padStart(2, "0")
 }
 
 function formatTime(hour: number, minute: number) {
@@ -51,10 +51,9 @@ export function TimePicker({ value, onChange }: TimePickerProps) {
     setOpen(false)
   }
 
-  const hourButton = (clockHour: number, isPM: boolean) => {
-    const dialHour = clockHour % 12 + (isPM ? 12 : 0)
+  const hourButton = (clockHour: number, dialHour: number, isInner: boolean) => {
     const angle = (clockHour * 30 - 90) * (Math.PI / 180)
-    const radius = isPM ? 58 : 96
+    const radius = isInner ? 58 : 96
     const style: CSSProperties = {
       left: `calc(50% + ${Math.cos(angle) * radius}px)`,
       top: `calc(50% + ${Math.sin(angle) * radius}px)`,
@@ -62,9 +61,9 @@ export function TimePicker({ value, onChange }: TimePickerProps) {
 
     return (
       <button
-        key={`${clockHour}-${isPM ? "pm" : "am"}`}
+        key={`${clockHour}-${dialHour}`}
         type="button"
-        aria-label={`${isPM ? "PM" : "AM"} ${clockHour || 12}時`}
+        aria-label={`${dialHour === 0 ? "00" : dialHour}時`}
         aria-pressed={hour === dialHour}
         onClick={() => {
           setHour(dialHour)
@@ -75,7 +74,7 @@ export function TimePicker({ value, onChange }: TimePickerProps) {
         }`}
         style={style}
       >
-        {clockHour || 12}
+        {dialHour === 0 ? "00" : dialHour}
       </button>
     )
   }
@@ -136,7 +135,6 @@ export function TimePicker({ value, onChange }: TimePickerProps) {
                 >
                   {String(minute).padStart(2, "0")}
                 </button>
-                <span className="ml-1 text-xs font-semibold text-muted-foreground">{hour < 12 ? "AM" : "PM"}</span>
               </div>
               <button
                 type="button"
@@ -148,18 +146,20 @@ export function TimePicker({ value, onChange }: TimePickerProps) {
               </button>
             </div>
 
-            <p className="mb-3 text-center text-xs text-muted-foreground">
-              {step === "hour" ? "外周はAM、内周はPM" : "分を選択"}
-            </p>
+            {step === "minute" && <p className="mb-3 text-center text-xs text-muted-foreground">分を選択</p>}
             <div className="relative mx-auto size-64 rounded-full bg-muted/60">
               <div className="absolute left-1/2 top-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary" />
               {step === "hour"
-                ? hours.map((clockHour) => (
-                    <span key={clockHour}>
-                      {hourButton(clockHour % 12, false)}
-                      {hourButton(clockHour % 12, true)}
-                    </span>
-                  ))
+                ? hours.map((clockHour) => {
+                    const clockPosition = clockHour % 12
+                    const innerHour = clockHour === 12 ? 0 : clockHour + 12
+                    return (
+                      <span key={clockHour}>
+                        {hourButton(clockPosition, clockHour, false)}
+                        {hourButton(clockPosition, innerHour, true)}
+                      </span>
+                    )
+                  })
                 : minuteMarks.map((mark) => {
                     const angle = (mark * 6 - 90) * (Math.PI / 180)
                     const style: CSSProperties = {

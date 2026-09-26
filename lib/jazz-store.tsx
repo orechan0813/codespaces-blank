@@ -227,13 +227,6 @@ const seedAnnouncements: Announcement[] = [
   },
 ]
 
-const seedLost: LostItem[] = [
-  { id: uid(), title: "ネイビーの水筒", image: "/lost/water-bottle.png", place: "音楽室", date: dateFromNow(-2) },
-  { id: uid(), title: "黒いメトロノーム", image: "/lost/metronome.png", place: "第2練習室", date: dateFromNow(-4) },
-  { id: uid(), title: "紺のカーディガン", image: "/lost/cardigan.png", place: "楽器庫前", date: dateFromNow(-5) },
-  { id: uid(), title: "リードケース", image: "/lost/reed-case.png", place: "音楽準備室", date: dateFromNow(-7) },
-]
-
 const seedSheets: Sheet[] = [
   { id: uid(), title: "Take the A Train", composer: "Billy Strayhorn", driveLink: "https://drive.google.com/", youtubeUrl: "", audioDirectUrl: "", duration: "3:42", hasAudio: true },
   { id: uid(), title: "Sing, Sing, Sing", composer: "Louis Prima", driveLink: "https://drive.google.com/", youtubeUrl: "", audioDirectUrl: "", duration: "5:18", hasAudio: true },
@@ -266,20 +259,6 @@ const seedDiary: DiaryEntry[] = [
   },
 ]
 
-const seedAbsences: AbsenceReport[] = [
-  { id: uid(), memberName: "鈴木 美咲", date: dateFromNow(2), reason: "習い事・塾", note: "数学の補習のため15分遅刻します" },
-  { id: uid(), memberName: "高橋 大輝", date: dateFromNow(1), reason: "他部活に行く", note: "" },
-]
-
-const seedSupplies: SupplyRequest[] = [
-  { id: uid(), memberName: "田中 蓮", kind: "purchase", item: "トランペット用ミュート", reason: "共用のものが破損したため", date: dateFromNow(-2) },
-  { id: uid(), memberName: "高橋 大輝", kind: "repair", item: "スネアドラムの皮", reason: "ヘッドが破れて音が出ない", date: dateFromNow(-3) },
-]
-
-const seedLostReports: LostReport[] = [
-  { id: uid(), memberName: "鈴木 美咲", description: "青いチューナーを探しています", place: "音楽室のロッカー付近", date: dateFromNow(-1) },
-]
-
 async function loadFromSupabase<T>(table: string, mapper: (row: Record<string, unknown>) => T): Promise<T[]> {
   if (!supabase) return []
   const { data, error } = await supabase.from(table).select("*")
@@ -303,6 +282,17 @@ async function deleteFromSupabase(table: string, id: string) {
   const { error } = await supabase.from(table).delete().eq("id", id)
   if (error) {
     console.error(`Supabase delete failed for ${table}`, error)
+  }
+}
+
+async function notifyLostItem(payload: { kind: "found-item" | "lost-report"; title: string; place: string; detail: string }) {
+  const response = await fetch("/api/notify-lost-item", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  })
+  if (!response.ok) {
+    throw new Error(`Discord lost item notification failed (${response.status})`)
   }
 }
 
@@ -363,6 +353,17 @@ function normalizeLostItem(row: Record<string, unknown>): LostItem {
     title: String(row.title ?? ""),
     image: String(row.image ?? ""),
     place: String(row.place ?? ""),
+    date: String(row.date ?? ""),
+  }
+}
+
+function normalizeSupply(row: Record<string, unknown>): SupplyRequest {
+  return {
+    id: String(row.id ?? uid()),
+    memberName: String(row.member_name ?? row.memberName ?? ""),
+    kind: row.kind === "repair" ? "repair" : "purchase",
+    item: String(row.item ?? ""),
+    reason: String(row.reason ?? ""),
     date: String(row.date ?? ""),
   }
 }
@@ -448,6 +449,8 @@ type Store = {
   submitSupply: (r: Omit<SupplyRequest, "id" | "date">) => void
   submitLostReport: (r: Omit<LostReport, "id" | "date">) => void
   // admin
+  addLostItem: (item: Omit<LostItem, "id" | "date">) => void
+  removeLostItem: (id: string) => void
   addEvent: (e: Omit<ClubEvent, "id">) => void
   removeEvent: (id: string) => void
   addPractice: (p: Omit<PracticeItem, "id">) => void
@@ -481,9 +484,9 @@ export function JazzProvider({ children }: { children: ReactNode }) {
   const [lostItems, setLostItems] = useState<LostItem[]>([])
   const [sheets, setSheets] = useState<Sheet[]>([])
   const [diary, setDiary] = useState<DiaryEntry[]>([])
-  const [absences, setAbsences] = useState<AbsenceReport[]>(seedAbsences)
-  const [supplies, setSupplies] = useState<SupplyRequest[]>(seedSupplies)
-  const [lostReports, setLostReports] = useState<LostReport[]>(seedLostReports)
+  const [absences, setAbsences] = useState<AbsenceReport[]>([])
+  const [supplies, setSupplies] = useState<SupplyRequest[]>([])
+  const [lostReports, setLostReports] = useState<LostReport[]>([])
   const [toasts, setToasts] = useState<Toast[]>([])
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
@@ -508,7 +511,7 @@ export function JazzProvider({ children }: { children: ReactNode }) {
     let active = true
 
     const load = async () => {
-      const [memberRows, eventRows, practiceRows, announcementRows, lostItemRows, sheetRows, diaryRows, absenceRows, lostReportRows] = await Promise.all([
+      const [memberRows, eventRows, practiceRows, announcementRows, lostItemRows, sheetRows, diaryRows, absenceRows, supplyRows, lostReportRows] = await Promise.all([
         loadFromSupabase("members", normalizeMember),
         loadFromSupabase("club_events", normalizeEvent),
         loadFromSupabase("practice_items", normalizePractice),
@@ -517,6 +520,7 @@ export function JazzProvider({ children }: { children: ReactNode }) {
         loadFromSupabase("music_scores", normalizeSheet),
         loadFromSupabase("diary_entries", normalizeDiary),
         loadFromSupabase("absence_reports", normalizeAbsence),
+        loadFromSupabase("supply_requests", normalizeSupply),
         loadFromSupabase("lost_reports", normalizeLostReport),
       ])
 
@@ -529,8 +533,9 @@ export function JazzProvider({ children }: { children: ReactNode }) {
       setLostItems(lostItemRows)
       if (sheetRows.length > 0) setSheets(sheetRows)
       if (diaryRows.length > 0) setDiary(diaryRows)
-      if (absenceRows.length > 0) setAbsences(absenceRows)
-      if (lostReportRows.length > 0) setLostReports(lostReportRows)
+      setAbsences(absenceRows)
+      setSupplies(supplyRows)
+      setLostReports(lostReportRows)
 
       if (typeof window !== "undefined") {
         const savedUser = window.localStorage.getItem(STORAGE_KEY)
@@ -636,7 +641,16 @@ export function JazzProvider({ children }: { children: ReactNode }) {
 
   const submitSupply = useCallback(
     (r: Omit<SupplyRequest, "id" | "date">) => {
-      setSupplies((prev) => [{ ...r, id: uid(), date: iso(new Date()) }, ...prev])
+      const supply = { ...r, id: uid(), date: iso(new Date()) }
+      setSupplies((prev) => [supply, ...prev])
+      void persistToSupabase("supply_requests", {
+        id: supply.id,
+        member_name: supply.memberName,
+        kind: supply.kind,
+        item: supply.item,
+        reason: supply.reason,
+        date: supply.date,
+      })
       toast("希望を提出しました")
     },
     [toast],
@@ -653,7 +667,38 @@ export function JazzProvider({ children }: { children: ReactNode }) {
         place: report.place,
         date: report.date,
       })
+      void notifyLostItem({
+        kind: "lost-report",
+        title: report.description,
+        place: report.place,
+        detail: report.memberName ? `連絡者: ${report.memberName}` : "",
+      }).catch((error) => console.error("Discord lost report notification failed", error))
       toast("紛失物を連絡しました")
+    },
+    [toast],
+  )
+
+  const addLostItem = useCallback(
+    (item: Omit<LostItem, "id" | "date">) => {
+      const lostItem = { ...item, id: uid(), date: iso(new Date()) }
+      setLostItems((previous) => [lostItem, ...previous])
+      void persistToSupabase("lost_items", lostItem)
+      void notifyLostItem({
+        kind: "found-item",
+        title: lostItem.title,
+        place: lostItem.place,
+        detail: lostItem.image ? `写真: ${lostItem.image}` : "",
+      }).catch((error) => console.error("Discord lost item notification failed", error))
+      toast("落とし物を登録しました")
+    },
+    [toast],
+  )
+
+  const removeLostItem = useCallback(
+    (id: string) => {
+      setLostItems((previous) => previous.filter((item) => item.id !== id))
+      void deleteFromSupabase("lost_items", id)
+      toast("落とし物を削除しました", "danger")
     },
     [toast],
   )
@@ -834,6 +879,7 @@ export function JazzProvider({ children }: { children: ReactNode }) {
   const resolveSupply = useCallback(
     (id: string) => {
       setSupplies((prev) => prev.filter((x) => x.id !== id))
+      void deleteFromSupabase("supply_requests", id)
       toast("対応済みにしました")
     },
     [toast],
@@ -871,6 +917,8 @@ export function JazzProvider({ children }: { children: ReactNode }) {
       submitAbsence,
       submitSupply,
       submitLostReport,
+      addLostItem,
+      removeLostItem,
       addEvent,
       removeEvent,
       addPractice,
@@ -907,6 +955,8 @@ export function JazzProvider({ children }: { children: ReactNode }) {
       submitAbsence,
       submitSupply,
       submitLostReport,
+      addLostItem,
+      removeLostItem,
       addEvent,
       removeEvent,
       addPractice,
@@ -954,6 +1004,8 @@ export function useJazz() {
       submitAbsence: () => {},
       submitSupply: () => {},
       submitLostReport: () => {},
+      addLostItem: () => {},
+      removeLostItem: () => {},
       addEvent: () => {},
       removeEvent: () => {},
       addPractice: () => {},

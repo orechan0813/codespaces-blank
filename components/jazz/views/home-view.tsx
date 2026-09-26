@@ -6,9 +6,22 @@ import { formatJPDate, useJazz } from "@/lib/jazz-store"
 import { Panel, SectionHeading, Tag } from "@/components/jazz/primitives"
 
 export function HomeView({ onNavigate }: { onNavigate: (k: "calendar" | "library" | "forms") => void }) {
-  const { currentUser, events, announcements, lostItems: foundItems } = useJazz()
+  const { currentUser, events, practice, announcements, lostItems: foundItems, lostReports } = useJazz()
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date())
   const todayEvents = events.filter((event) => event.date === today).sort((a, b) => (a.startTime ?? "").localeCompare(b.startTime ?? ""))
+  const earliestPracticeEvent = todayEvents
+    .filter((event) => event.type === "practice" && event.startTime)
+    .sort((a, b) => (a.startTime ?? "").localeCompare(b.startTime ?? ""))[0]
+  const homeLostItems = [
+    ...foundItems.map((item) => ({ ...item, id: `found-${item.id}` })),
+    ...lostReports.map((report) => ({
+      id: `report-${report.id}`,
+      title: report.description,
+      image: report.image,
+      place: report.place,
+      date: report.date,
+    })),
+  ].sort((a, b) => b.date.localeCompare(a.date))
   const [now, setNow] = useState(() => new Date())
 
   useEffect(() => {
@@ -40,25 +53,46 @@ export function HomeView({ onNavigate }: { onNavigate: (k: "calendar" | "library
                 const start = event.startTime ? new Date(`${event.date}T${event.startTime}:00+09:00`) : null
                 const end = event.endTime ? new Date(`${event.date}T${event.endTime}:00+09:00`) : null
                 const isNow = Boolean(start && end && now >= start && now <= end)
+                const isPracticeEvent = event.id === earliestPracticeEvent?.id
 
                 return (
-                  <li key={event.id} className="flex flex-col gap-1.5 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-medium text-foreground">{event.title}</h3>
-                        {isNow && (
-                          <span className="rounded-full bg-primary px-2 py-0.5 text-[0.65rem] font-bold text-primary-foreground">
-                            NOW
-                          </span>
+                  <li key={event.id} className={isPracticeEvent ? "my-2 rounded-xl border border-border/80 bg-background/35 p-4" : "py-3"}>
+                    <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-medium text-foreground">{event.title}</h3>
+                          {isNow && (
+                            <span className="rounded-full bg-primary px-2 py-0.5 text-[0.65rem] font-bold text-primary-foreground">
+                              NOW
+                            </span>
+                          )}
+                        </div>
+                        {event.detail && <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{event.detail}</p>}
+                      </div>
+                      {event.startTime && (
+                        <span className="inline-flex shrink-0 items-center gap-1.5 font-mono text-sm text-primary">
+                          <Clock className="size-4" />
+                          {event.startTime}〜{event.endTime ?? ""}
+                        </span>
+                      )}
+                    </div>
+                    {isPracticeEvent && (
+                      <div className="mt-4 border-t border-border/70 pt-3">
+                        <h4 className="mb-2 text-xs font-semibold text-muted-foreground">本日の練習内容</h4>
+                        {practice.length > 0 ? (
+                          <ul className="space-y-2">
+                            {practice.map((item) => (
+                              <li key={item.id} className="flex flex-col gap-0.5 text-sm sm:flex-row sm:items-baseline sm:gap-3">
+                                <span className="shrink-0 font-mono text-xs text-primary">{item.start}〜{item.end_time}</span>
+                                <span className="font-medium text-foreground">{item.title}</span>
+                                {item.note && <span className="text-xs text-muted-foreground">{item.note}</span>}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">本日の練習内容はまだありません。</p>
                         )}
                       </div>
-                      {event.detail && <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{event.detail}</p>}
-                    </div>
-                    {event.startTime && (
-                      <span className="inline-flex shrink-0 items-center gap-1.5 font-mono text-sm text-primary">
-                        <Clock className="size-4" />
-                        {event.startTime}〜{event.endTime ?? ""}
-                      </span>
                     )}
                   </li>
                 )
@@ -105,9 +139,9 @@ export function HomeView({ onNavigate }: { onNavigate: (k: "calendar" | "library
             </button>
           }
         />
-        {foundItems.length > 0 ? (
+        {homeLostItems.length > 0 ? (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {foundItems.map((item) => (
+            {homeLostItems.map((item) => (
               <figure
                 key={item.id}
                 className="group overflow-hidden rounded-2xl border border-border bg-card/70"
@@ -124,8 +158,9 @@ export function HomeView({ onNavigate }: { onNavigate: (k: "calendar" | "library
                   <p className="truncate text-sm font-medium text-foreground">{item.title}</p>
                   <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground">
                     <MapPin className="size-3" />
-                    {item.place}
+                    {item.place || "場所未記入"}
                   </p>
+                  <p className="mt-1 text-xs text-muted-foreground/70">{formatJPDate(item.date)}</p>
                 </figcaption>
               </figure>
             ))}

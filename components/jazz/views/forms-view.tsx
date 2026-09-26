@@ -1,8 +1,8 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { CalendarOff, ImagePlus, PackageSearch, ShoppingCart, Wrench, X } from "lucide-react"
-import { ABSENCE_REASONS, useJazz } from "@/lib/jazz-store"
+import { ABSENCE_REASONS, uploadLostReportImage, useJazz } from "@/lib/jazz-store"
 import { Panel, SectionHeading, fieldClass, labelClass } from "@/components/jazz/primitives"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -196,25 +196,53 @@ function SupplyForm() {
 }
 
 function LostForm() {
-  const { currentUser, submitLostReport } = useJazz()
+  const { currentUser, submitLostReport, toast } = useJazz()
   const [description, setDescription] = useState("")
   const [place, setPlace] = useState("")
   const [preview, setPreview] = useState<string | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [submitting, setSubmitting] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => () => {
+    if (preview) URL.revokeObjectURL(preview)
+  }, [preview])
 
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
-    if (f) setPreview(URL.createObjectURL(f))
+    if (!f) return
+    if (!("image/jpeg image/png image/webp image/gif".split(" ").includes(f.type)) || f.size > 5 * 1024 * 1024) {
+      toast("JPEG、PNG、WebP、GIF形式の5MB以下の画像を選択してください。", "danger")
+      e.currentTarget.value = ""
+      return
+    }
+    setImageFile(f)
+    setPreview(URL.createObjectURL(f))
   }
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (!description.trim()) return
-    submitLostReport({ memberName: currentUser?.name ?? "", description: description.trim(), place: place.trim() })
-    setDescription("")
-    setPlace("")
-    setPreview(null)
-    if (fileRef.current) fileRef.current.value = ""
+    if (!description.trim() || submitting) return
+
+    setSubmitting(true)
+    try {
+      const image = imageFile ? await uploadLostReportImage(imageFile) : ""
+      submitLostReport({
+        memberName: currentUser?.name ?? "",
+        description: description.trim(),
+        image,
+        place: place.trim(),
+      })
+      setDescription("")
+      setPlace("")
+      setImageFile(null)
+      setPreview(null)
+      if (fileRef.current) fileRef.current.value = ""
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "画像をアップロードできませんでした。", "danger")
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -222,7 +250,7 @@ function LostForm() {
       <form onSubmit={submit} className="space-y-4">
         <div>
           <label className={labelClass}>写真（任意）</label>
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
+          <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={onFile} />
           {preview ? (
             <div className="relative overflow-hidden rounded-xl border border-border">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -231,6 +259,7 @@ function LostForm() {
                 type="button"
                 onClick={() => {
                   setPreview(null)
+                  setImageFile(null)
                   if (fileRef.current) fileRef.current.value = ""
                 }}
                 aria-label="写真を削除"
@@ -262,8 +291,8 @@ function LostForm() {
           </label>
           <input id="lost-place" className={fieldClass} placeholder="例：音楽室のロッカー付近" value={place} onChange={(e) => setPlace(e.target.value)} />
         </div>
-        <Button type="submit" size="lg" className="w-full" disabled={!description.trim()}>
-          紛失物を連絡
+        <Button type="submit" size="lg" className="w-full" disabled={!description.trim() || submitting}>
+          {submitting ? "画像を送信中…" : "紛失物を連絡"}
         </Button>
       </form>
     </Panel>

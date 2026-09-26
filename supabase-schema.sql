@@ -84,6 +84,34 @@ create table if not exists public.lost_reports (
   id text primary key,
   member_name text not null,
   description text not null,
+  image text not null default '',
   place text not null,
   date text not null
 );
+
+alter table public.lost_reports add column if not exists image text not null default '';
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'lost-report-images',
+  'lost-report-images',
+  true,
+  5242880,
+  array['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+)
+on conflict (id) do update
+set public = excluded.public,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "Public can view lost report images" on storage.objects;
+create policy "Public can view lost report images"
+  on storage.objects for select
+  to anon, authenticated
+  using (bucket_id = 'lost-report-images');
+
+drop policy if exists "Public can upload lost report images" on storage.objects;
+create policy "Public can upload lost report images"
+  on storage.objects for insert
+  to anon, authenticated
+  with check (bucket_id = 'lost-report-images');

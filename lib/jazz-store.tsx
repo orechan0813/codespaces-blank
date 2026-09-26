@@ -101,6 +101,7 @@ export type LostReport = {
   id: string
   memberName: string
   description: string
+  image: string
   place: string
   date: string
 }
@@ -296,6 +297,22 @@ async function notifyLostItem(payload: { kind: "found-item" | "lost-report"; tit
   }
 }
 
+export async function uploadLostReportImage(file: File) {
+  if (!supabase) throw new Error("Supabase の設定が必要です。")
+  if (!file.type.startsWith("image/")) throw new Error("画像ファイルを選択してください。")
+  if (file.size > 5 * 1024 * 1024) throw new Error("画像は5MB以下にしてください。")
+
+  const extension = file.name.split(".").pop()?.replace(/[^a-zA-Z0-9]/g, "") || "image"
+  const path = `${uid()}.${extension}`
+  const { error } = await supabase.storage.from("lost-report-images").upload(path, file, {
+    contentType: file.type,
+    upsert: false,
+  })
+  if (error) throw error
+
+  return supabase.storage.from("lost-report-images").getPublicUrl(path).data.publicUrl
+}
+
 function normalizeMember(row: Record<string, unknown>): Member {
   const name = String(row.name ?? "")
   const grade = (row.grade as Grade) ?? "1年"
@@ -406,6 +423,7 @@ function normalizeLostReport(row: Record<string, unknown>): LostReport {
     id: String(row.id ?? uid()),
     memberName: String(row.memberName ?? row.member_name ?? ""),
     description: String(row.description ?? ""),
+    image: String(row.image ?? ""),
     place: String(row.place ?? ""),
     date: String(row.date ?? ""),
   }
@@ -664,6 +682,7 @@ export function JazzProvider({ children }: { children: ReactNode }) {
         id: report.id,
         member_name: report.memberName,
         description: report.description,
+        image: report.image,
         place: report.place,
         date: report.date,
       })
@@ -671,7 +690,10 @@ export function JazzProvider({ children }: { children: ReactNode }) {
         kind: "lost-report",
         title: report.description,
         place: report.place,
-        detail: report.memberName ? `連絡者: ${report.memberName}` : "",
+        detail: [
+          report.memberName ? `連絡者: ${report.memberName}` : "",
+          report.image ? `画像: ${report.image}` : "",
+        ].filter(Boolean).join(" / "),
       }).catch((error) => console.error("Discord lost report notification failed", error))
       toast("紛失物を連絡しました")
     },

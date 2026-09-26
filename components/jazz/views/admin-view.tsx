@@ -448,16 +448,23 @@ function DiaryAdmin() {
 
 function InboxAdmin() {
   const { absences, supplies, lostReports, resolveAbsence, resolveSupply, resolveLostReport } = useJazz()
+  const todayJst = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date())
+  const todaysAbsences = absences.filter((absence) => absence.date === todayJst)
 
   return (
     <div className="space-y-6">
       <div>
         <h3 className="mb-3 flex items-center gap-2 font-medium text-foreground">
-          欠席連絡 <Tag>{absences.length}</Tag>
+          欠席連絡 <Tag>{todaysAbsences.length}</Tag>
         </h3>
         <div className="space-y-2">
-          {absences.length === 0 && <Empty label="未確認の欠席連絡はありません" />}
-          {absences.map((a) => (
+          {todaysAbsences.length === 0 && <Empty label="本日の欠席連絡はありません" />}
+          {todaysAbsences.map((a) => (
             <Panel key={a.id} className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">

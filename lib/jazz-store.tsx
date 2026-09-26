@@ -313,7 +313,7 @@ function normalizeMember(row: Record<string, unknown>): Member {
 }
 
 function normalizeEvent(row: Record<string, unknown>): ClubEvent {
-  const startTime = row.startTime || row.start_time || row.time
+  const startTime = row.time ?? row.start_time ?? row.startTime
   const endTime = row.endTime || row.end_time
 
   return {
@@ -710,7 +710,7 @@ export function JazzProvider({ children }: { children: ReactNode }) {
       void persistToSupabase("club_events", {
         id: event.id,
         date: event.date,
-        start_time: event.startTime ?? "",
+        time: event.startTime ?? "",
         end_time: event.endTime ?? "",
         title: event.title,
         detail: event.detail,

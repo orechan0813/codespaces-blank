@@ -6,7 +6,7 @@ import { formatJPDate, useJazz } from "@/lib/jazz-store"
 import { Panel, SectionHeading, Tag } from "@/components/jazz/primitives"
 
 export function HomeView({ onNavigate }: { onNavigate: (k: "calendar" | "library" | "forms") => void }) {
-  const { currentUser, events, announcements, lostItems } = useJazz()
+  const { currentUser, events, announcements, lostItems: foundItems } = useJazz()
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date())
   const todayEvents = events.filter((event) => event.date === today).sort((a, b) => (a.startTime ?? "").localeCompare(b.startTime ?? ""))
   const [now, setNow] = useState(() => new Date())
@@ -105,9 +105,9 @@ export function HomeView({ onNavigate }: { onNavigate: (k: "calendar" | "library
             </button>
           }
         />
-        {lostItems.length > 0 ? (
+        {foundItems.length > 0 ? (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {lostItems.map((item) => (
+            {foundItems.map((item) => (
               <figure
                 key={item.id}
                 className="group overflow-hidden rounded-2xl border border-border bg-card/70"

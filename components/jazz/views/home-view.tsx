@@ -2,13 +2,11 @@
 
 import { useEffect, useState } from "react"
 import { Clock, MapPin, Megaphone, PackageSearch, Pin } from "lucide-react"
-import { formatJPDate, nextEvent, useJazz } from "@/lib/jazz-store"
+import { formatJPDate, useJazz } from "@/lib/jazz-store"
 import { Panel, SectionHeading, Tag } from "@/components/jazz/primitives"
-import { Countdown } from "@/components/jazz/countdown"
 
 export function HomeView({ onNavigate }: { onNavigate: (k: "calendar" | "library" | "forms") => void }) {
   const { currentUser, events, announcements, lostItems } = useJazz()
-  const upcoming = nextEvent(events)
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date())
   const todayEvents = events.filter((event) => event.date === today).sort((a, b) => (a.startTime ?? "").localeCompare(b.startTime ?? ""))
   const [now, setNow] = useState(() => new Date())
@@ -27,54 +25,41 @@ export function HomeView({ onNavigate }: { onNavigate: (k: "calendar" | "library
         </h1>
       </div>
 
-      {/* Countdown hero */}
+      {/* Today's schedule */}
       <Panel className="relative overflow-hidden">
         <div className="pointer-events-none absolute -right-16 -top-16 size-56 rounded-full bg-primary/10 blur-3xl" />
-        <div className="relative space-y-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <div className="mb-2 flex items-center gap-2">
-                <Tag>TODAY</Tag>
-                <span className="text-xs text-muted-foreground">本日の練習</span>
-              </div>
-              <h2 className="font-serif text-2xl font-semibold text-foreground">今日の予定</h2>
-            </div>
-            {upcoming && (
-              <div className="shrink-0">
-                <span className="mb-1 block text-right text-xs text-muted-foreground">次のイベントまで</span>
-                <Countdown date={upcoming.date} startTime={upcoming.startTime} />
-              </div>
-            )}
+        <div className="relative space-y-3">
+          <div>
+            <Tag className="mb-2">TODAY</Tag>
+            <h2 className="font-serif text-2xl font-semibold text-foreground">今日の予定</h2>
           </div>
 
           {todayEvents.length > 0 ? (
-            <ol className="space-y-3">
+            <ol className="divide-y divide-border/70">
               {todayEvents.map((event) => {
                 const start = event.startTime ? new Date(`${event.date}T${event.startTime}:00+09:00`) : null
                 const end = event.endTime ? new Date(`${event.date}T${event.endTime}:00+09:00`) : null
                 const isNow = Boolean(start && end && now >= start && now <= end)
 
                 return (
-                  <li key={event.id} className="rounded-xl border border-border/80 bg-background/35 p-4">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="font-medium text-foreground">{event.title}</h3>
-                          {isNow && (
-                            <span className="rounded-full bg-primary px-2 py-0.5 text-[0.65rem] font-bold tracking-wider text-primary-foreground">
-                              NOW
-                            </span>
-                          )}
-                        </div>
-                        {event.detail && <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{event.detail}</p>}
+                  <li key={event.id} className="flex flex-col gap-1.5 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-medium text-foreground">{event.title}</h3>
+                        {isNow && (
+                          <span className="rounded-full bg-primary px-2 py-0.5 text-[0.65rem] font-bold text-primary-foreground">
+                            NOW
+                          </span>
+                        )}
                       </div>
-                      {event.startTime && (
-                        <span className="inline-flex shrink-0 items-center gap-1.5 font-mono text-sm text-primary">
-                          <Clock className="size-4" />
-                          {event.startTime}〜{event.endTime ?? ""}
-                        </span>
-                      )}
+                      {event.detail && <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{event.detail}</p>}
                     </div>
+                    {event.startTime && (
+                      <span className="inline-flex shrink-0 items-center gap-1.5 font-mono text-sm text-primary">
+                        <Clock className="size-4" />
+                        {event.startTime}〜{event.endTime ?? ""}
+                      </span>
+                    )}
                   </li>
                 )
               })}
@@ -120,30 +105,34 @@ export function HomeView({ onNavigate }: { onNavigate: (k: "calendar" | "library
             </button>
           }
         />
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {lostItems.map((item) => (
-            <figure
-              key={item.id}
-              className="group overflow-hidden rounded-2xl border border-border bg-card/70"
-            >
-              <div className="aspect-square overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={item.image || "/placeholder.svg"}
-                  alt={item.title}
-                  className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
-                />
-              </div>
-              <figcaption className="p-3">
-                <p className="truncate text-sm font-medium text-foreground">{item.title}</p>
-                <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground">
-                  <MapPin className="size-3" />
-                  {item.place}
-                </p>
-              </figcaption>
-            </figure>
-          ))}
-        </div>
+        {lostItems.length > 0 ? (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {lostItems.map((item) => (
+              <figure
+                key={item.id}
+                className="group overflow-hidden rounded-2xl border border-border bg-card/70"
+              >
+                <div className="aspect-square overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={item.image || "/placeholder.svg"}
+                    alt={item.title}
+                    className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                </div>
+                <figcaption className="p-3">
+                  <p className="truncate text-sm font-medium text-foreground">{item.title}</p>
+                  <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    <MapPin className="size-3" />
+                    {item.place}
+                  </p>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">現在、掲載中の落とし物はありません。</p>
+        )}
       </section>
     </div>
   )

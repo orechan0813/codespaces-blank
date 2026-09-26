@@ -19,6 +19,7 @@ import {
 } from "@/lib/jazz-store"
 import { Panel, SectionHeading, Tag, fieldClass, labelClass } from "@/components/jazz/primitives"
 import { Button } from "@/components/ui/button"
+import { TimePicker } from "@/components/jazz/time-picker"
 import { cn } from "@/lib/utils"
 
 const ADMIN_PASSWORD = "jazz2025"
@@ -157,11 +158,11 @@ function ScheduleAdmin() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelClass}>開始時間</label>
-              <input type="time" className={fieldClass} value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+              <TimePicker value={startTime} onChange={setStartTime} />
             </div>
             <div>
               <label className={labelClass}>終了時間</label>
-              <input type="time" className={fieldClass} value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+              <TimePicker value={endTime} onChange={setEndTime} />
             </div>
           </div>
           <select className={fieldClass} value={type} onChange={(e) => setType(e.target.value as EventType)}>
@@ -201,11 +202,11 @@ function ScheduleAdmin() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelClass}>開始</label>
-              <input type="time" className={fieldClass} value={pStart} onChange={(e) => setPStart(e.target.value)} />
+              <TimePicker value={pStart} onChange={setPStart} />
             </div>
             <div>
               <label className={labelClass}>終了</label>
-              <input type="time" className={fieldClass} value={pEnd} onChange={(e) => setPEnd(e.target.value)} />
+              <TimePicker value={pEnd} onChange={setPEnd} />
             </div>
           </div>
           <input className={fieldClass} placeholder="内容（例：A の曲）" value={pTitle} onChange={(e) => setPTitle(e.target.value)} />

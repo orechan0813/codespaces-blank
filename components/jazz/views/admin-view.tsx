@@ -132,6 +132,15 @@ function ScheduleAdmin() {
   const [pStart, setPStart] = useState("")
   const [pEnd, setPEnd] = useState("")
   const [pTitle, setPTitle] = useState("")
+  const todayJst = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date())
+  const upcomingEvents = events
+    .filter((event) => event.date >= todayJst)
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.startTime ?? "").localeCompare(b.startTime ?? ""))
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -177,7 +186,7 @@ function ScheduleAdmin() {
         </form>
 
         <div className="mt-5 space-y-2 border-t border-border pt-4">
-          {[...events].sort((a, b) => a.date.localeCompare(b.date)).map((e) => (
+          {upcomingEvents.map((e) => (
             <Row key={e.id} onDelete={() => removeEvent(e.id)}>
               <p className="truncate text-sm font-medium text-foreground">{e.title}</p>
               <p className="text-xs text-muted-foreground">{formatJPDate(e.date)}{e.startTime ? ` ${e.startTime}〜${e.endTime ?? ""}` : ""}</p>

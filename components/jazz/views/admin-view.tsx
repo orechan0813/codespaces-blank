@@ -8,7 +8,6 @@ import {
   Megaphone,
   Music2,
   NotebookPen,
-  PackageSearch,
   Plus,
   Trash2,
   Users,
@@ -25,7 +24,7 @@ import { cn } from "@/lib/utils"
 
 const ADMIN_PASSWORD = "jazz2025"
 
-type AdminTab = "schedule" | "announce" | "library" | "diary" | "inbox" | "members" | "lost"
+type AdminTab = "schedule" | "announce" | "library" | "diary" | "inbox" | "members"
 
 export function AdminView() {
   const [unlocked, setUnlocked] = useState(false)
@@ -84,7 +83,6 @@ export function AdminView() {
     { key: "diary", label: "日記", icon: NotebookPen },
     { key: "inbox", label: "提出物", icon: Inbox },
     { key: "members", label: "部員管理", icon: Users },
-    { key: "lost", label: "落とし物", icon: PackageSearch },
   ]
 
   return (
@@ -118,52 +116,6 @@ export function AdminView() {
       {tab === "diary" && <DiaryAdmin />}
       {tab === "inbox" && <InboxAdmin />}
       {tab === "members" && <MembersAdmin />}
-      {tab === "lost" && <LostItemsAdmin />}
-    </div>
-  )
-}
-
-function LostItemsAdmin() {
-  const { lostItems, addLostItem, removeLostItem } = useJazz()
-  const [title, setTitle] = useState("")
-  const [place, setPlace] = useState("")
-  const [image, setImage] = useState("")
-
-  return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <Panel>
-        <h3 className="mb-4 font-medium text-foreground">落とし物を登録</h3>
-        <form
-          className="space-y-3"
-          onSubmit={(event) => {
-            event.preventDefault()
-            if (!title.trim()) return
-            addLostItem({ title: title.trim(), place: place.trim(), image: image.trim() })
-            setTitle("")
-            setPlace("")
-            setImage("")
-          }}
-        >
-          <input className={fieldClass} placeholder="品名・特徴" value={title} onChange={(event) => setTitle(event.target.value)} />
-          <input className={fieldClass} placeholder="見つかった場所" value={place} onChange={(event) => setPlace(event.target.value)} />
-          <input className={fieldClass} placeholder="写真URL（任意）" value={image} onChange={(event) => setImage(event.target.value)} />
-          <Button type="submit" className="w-full" disabled={!title.trim()}>
-            <Plus className="size-4" /> 登録して通知
-          </Button>
-        </form>
-      </Panel>
-
-      <div className="space-y-2">
-        {lostItems.length === 0 && <Empty label="掲載中の落とし物はありません" />}
-        {lostItems.map((item) => (
-          <Panel key={item.id} className="p-4">
-            <Row onDelete={() => removeLostItem(item.id)}>
-              <p className="truncate text-sm font-medium text-foreground">{item.title}</p>
-              <p className="text-xs text-muted-foreground">{item.place || "場所未記入"} · {formatJPDate(item.date)}</p>
-            </Row>
-          </Panel>
-        ))}
-      </div>
     </div>
   )
 }

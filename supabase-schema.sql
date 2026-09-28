@@ -44,15 +44,13 @@ create table if not exists public.lost_items (
   date text not null
 );
 
-create table if not exists public.music_scores (
+create table if not exists public.scores (
   id text primary key,
   title text not null,
   composer text not null default '',
-  drive_link text not null default '',
-  youtube_url text not null default '',
-  audio_direct_url text not null default '',
-  duration text not null default '',
-  has_audio boolean not null default false
+  drive_url text not null default '',
+  audio_url text not null default '',
+  youtube_url text not null default ''
 );
 
 create table if not exists public.diary_entries (
@@ -104,6 +102,19 @@ set public = excluded.public,
     file_size_limit = excluded.file_size_limit,
     allowed_mime_types = excluded.allowed_mime_types;
 
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'music-files',
+  'music-files',
+  true,
+  52428800,
+  array['audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/wav', 'audio/x-wav', 'audio/ogg', 'audio/aac', 'audio/flac', 'audio/webm']
+)
+on conflict (id) do update
+set public = excluded.public,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
+
 drop policy if exists "Public can view lost report images" on storage.objects;
 create policy "Public can view lost report images"
   on storage.objects for select
@@ -115,3 +126,15 @@ create policy "Public can upload lost report images"
   on storage.objects for insert
   to anon, authenticated
   with check (bucket_id = 'lost-report-images');
+
+drop policy if exists "Public can view music files" on storage.objects;
+create policy "Public can view music files"
+  on storage.objects for select
+  to anon, authenticated
+  using (bucket_id = 'music-files');
+
+drop policy if exists "Public can upload music files" on storage.objects;
+create policy "Public can upload music files"
+  on storage.objects for insert
+  to anon, authenticated
+  with check (bucket_id = 'music-files');

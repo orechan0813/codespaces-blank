@@ -11,10 +11,12 @@ import {
   Plus,
   Trash2,
   Users,
+  Upload,
 } from "lucide-react"
 import {
   useJazz,
   formatJPDate,
+  uploadScoreAudio,
   type EventType,
 } from "@/lib/jazz-store"
 import { Panel, SectionHeading, Tag, fieldClass, labelClass } from "@/components/jazz/primitives"
@@ -290,11 +292,11 @@ function LibraryAdmin() {
   const { sheets, addSheet, removeSheet } = useJazz()
   const [title, setTitle] = useState("")
   const [composer, setComposer] = useState("")
-  const [duration, setDuration] = useState("")
-  const [driveLink, setDriveLink] = useState("")
+  const [driveUrl, setDriveUrl] = useState("")
   const [youtubeUrl, setYoutubeUrl] = useState("")
-  const [audioDirectUrl, setAudioDirectUrl] = useState("")
-  const [hasAudio, setHasAudio] = useState(true)
+  const [audioFile, setAudioFile] = useState<File | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState("")
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -303,51 +305,57 @@ function LibraryAdmin() {
         <p className="mb-4 text-xs text-muted-foreground">この編集は管理者のみが行えます。</p>
         <form
           className="space-y-3"
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault()
             if (!title.trim()) return
-            addSheet({
-              title: title.trim(),
-              composer: composer.trim() || "Unknown",
-              duration: duration.trim() || "0:00",
-              driveLink: driveLink.trim() || "https://drive.google.com/",
-              youtubeUrl: youtubeUrl.trim(),
-              audioDirectUrl: audioDirectUrl.trim(),
-              hasAudio,
-            })
-            setTitle("")
-            setComposer("")
-            setDuration("")
-            setDriveLink("")
-            setYoutubeUrl("")
-            setAudioDirectUrl("")
-            setHasAudio(true)
+            const form = e.currentTarget
+            setSaving(true)
+            setError("")
+            try {
+              const audioUrl = audioFile ? await uploadScoreAudio(audioFile) : ""
+              await addSheet({
+                title: title.trim(),
+                composer: composer.trim(),
+                drive_url: driveUrl.trim(),
+                audio_url: audioUrl,
+                youtube_url: youtubeUrl.trim(),
+              })
+              setTitle("")
+              setComposer("")
+              setDriveUrl("")
+              setYoutubeUrl("")
+              setAudioFile(null)
+              form.reset()
+            } catch (uploadError) {
+              setError(uploadError instanceof Error ? uploadError.message : "曲の保存に失敗しました。")
+            } finally {
+              setSaving(false)
+            }
           }}
         >
           <input className={fieldClass} placeholder="曲名" value={title} onChange={(e) => setTitle(e.target.value)} />
           <input className={fieldClass} placeholder="作曲者" value={composer} onChange={(e) => setComposer(e.target.value)} />
-          <div className="grid grid-cols-2 gap-3">
-            <input className={fieldClass} placeholder="長さ（例：3:42）" value={duration} onChange={(e) => setDuration(e.target.value)} />
-            <input className={fieldClass} placeholder="Drive リンク" value={driveLink} onChange={(e) => setDriveLink(e.target.value)} />
-          </div>
+          <input className={fieldClass} type="url" placeholder="Googleドライブの楽譜URL" value={driveUrl} onChange={(e) => setDriveUrl(e.target.value)} />
           <input
             className={fieldClass}
-            placeholder="YouTube リンク"
+            type="url"
+            placeholder="YouTubeリンク"
             value={youtubeUrl}
             onChange={(e) => setYoutubeUrl(e.target.value)}
           />
-          <input
-            className={fieldClass}
-            placeholder="音源の直リンク URL (Google Driveなど)"
-            value={audioDirectUrl}
-            onChange={(e) => setAudioDirectUrl(e.target.value)}
-          />
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
-            <Toggle checked={hasAudio} onChange={() => setHasAudio((p) => !p)} />
-            音源データあり
+          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border px-3 py-3 text-sm text-muted-foreground">
+            <Upload className="size-4 shrink-0" />
+            <span className="min-w-0 flex-1 truncate">{audioFile?.name ?? "音源ファイルを選択"}</span>
+            <input
+              className="sr-only"
+              type="file"
+              accept="audio/*,.mp3,.m4a,.wav,.ogg"
+              onChange={(e) => setAudioFile(e.target.files?.[0] ?? null)}
+            />
           </label>
-          <Button type="submit" className="w-full" disabled={!title.trim()}>
-            <Plus className="size-4" /> ライブラリに追加
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          <Button type="submit" className="w-full" disabled={!title.trim() || saving}>
+            <Plus className="size-4" /> {saving ? "アップロード・保存中…" : "ライブラリに追加"}
           </Button>
         </form>
       </Panel>
@@ -356,7 +364,7 @@ function LibraryAdmin() {
           <Panel key={s.id} className="p-4">
             <Row onDelete={() => removeSheet(s.id)}>
               <p className="truncate text-sm font-medium text-foreground">{s.title}</p>
-              <p className="text-xs text-muted-foreground">{s.composer} · {s.duration}{s.hasAudio ? "" : " · 音源なし"}</p>
+              <p className="text-xs text-muted-foreground">{s.composer}{s.audio_url ? " · 音源あり" : " · 音源なし"}</p>
             </Row>
           </Panel>
         ))}

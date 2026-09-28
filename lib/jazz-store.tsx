@@ -61,16 +61,16 @@ export type LostItem = {
   date: string
 }
 
-export type Sheet = {
+export type Score = {
   id: string
   title: string
   composer: string
-  driveLink: string
-  youtubeUrl: string
-  audioDirectUrl: string
-  duration: string
-  hasAudio: boolean
+  drive_url: string
+  audio_url: string
+  youtube_url: string
 }
+
+export type Sheet = Score
 
 export type DiaryEntry = {
   id: string
@@ -228,14 +228,6 @@ const seedAnnouncements: Announcement[] = [
   },
 ]
 
-const seedSheets: Sheet[] = [
-  { id: uid(), title: "Take the A Train", composer: "Billy Strayhorn", driveLink: "https://drive.google.com/", youtubeUrl: "", audioDirectUrl: "", duration: "3:42", hasAudio: true },
-  { id: uid(), title: "Sing, Sing, Sing", composer: "Louis Prima", driveLink: "https://drive.google.com/", youtubeUrl: "", audioDirectUrl: "", duration: "5:18", hasAudio: true },
-  { id: uid(), title: "In the Mood", composer: "Joe Garland", driveLink: "https://drive.google.com/", youtubeUrl: "", audioDirectUrl: "", duration: "3:34", hasAudio: true },
-  { id: uid(), title: "Moanin'", composer: "Bobby Timmons", driveLink: "https://drive.google.com/", youtubeUrl: "", audioDirectUrl: "", duration: "4:05", hasAudio: false },
-  { id: uid(), title: "Spain", composer: "Chick Corea", driveLink: "https://drive.google.com/", youtubeUrl: "", audioDirectUrl: "", duration: "6:12", hasAudio: true },
-]
-
 const seedDiary: DiaryEntry[] = [
   {
     id: uid(),
@@ -271,11 +263,12 @@ async function loadFromSupabase<T>(table: string, mapper: (row: Record<string, u
 }
 
 async function persistToSupabase<T extends { id: string }>(table: string, row: T) {
-  if (!supabase) return
+  if (!supabase) return null
   const { error } = await supabase.from(table).upsert(row, { onConflict: "id" })
   if (error) {
-    console.error(`Supabase save failed for ${table}`, JSON.stringify(error, null, 2)) // 👈 ここ！
+    console.error(`Supabase save failed for ${table}`, error)
   }
+  return error
 }
 
 async function deleteFromSupabase(table: string, id: string) {
@@ -311,6 +304,21 @@ export async function uploadLostReportImage(file: File) {
   if (error) throw error
 
   return supabase.storage.from("lost-report-images").getPublicUrl(path).data.publicUrl
+}
+
+export async function uploadScoreAudio(file: File) {
+  if (!supabase) throw new Error("Supabase の設定が必要です。")
+  if (!file.type.startsWith("audio/")) throw new Error("音源ファイルを選択してください。")
+
+  const extension = file.name.split(".").pop()?.replace(/[^a-zA-Z0-9]/g, "") || "audio"
+  const path = `${uid()}.${extension}`
+  const { error } = await supabase.storage.from("music-files").upload(path, file, {
+    contentType: file.type,
+    upsert: false,
+  })
+  if (error) throw error
+
+  return supabase.storage.from("music-files").getPublicUrl(path).data.publicUrl
 }
 
 function normalizeMember(row: Record<string, unknown>): Member {
@@ -385,16 +393,14 @@ function normalizeSupply(row: Record<string, unknown>): SupplyRequest {
   }
 }
 
-function normalizeSheet(row: Record<string, unknown>): Sheet {
+function normalizeSheet(row: Record<string, unknown>): Score {
   return {
     id: String(row.id ?? uid()),
     title: String(row.title ?? ""),
     composer: String(row.composer ?? ""),
-    driveLink: String(row.driveLink ?? row.drive_link ?? ""),
-    youtubeUrl: String(row.youtubeUrl ?? row.youtube_url ?? ""),
-    audioDirectUrl: String(row.audioDirectUrl ?? row.audio_direct_url ?? ""),
-    duration: String(row.duration ?? ""),
-    hasAudio: Boolean(row.hasAudio ?? row.has_audio ?? false),
+    drive_url: String(row.drive_url ?? ""),
+    audio_url: String(row.audio_url ?? ""),
+    youtube_url: String(row.youtube_url ?? ""),
   }
 }
 
@@ -447,7 +453,7 @@ type Store = {
   practice: PracticeItem[]
   announcements: Announcement[]
   lostItems: LostItem[]
-  sheets: Sheet[]
+  sheets: Score[]
   diary: DiaryEntry[]
   absences: AbsenceReport[]
   supplies: SupplyRequest[]
@@ -475,7 +481,7 @@ type Store = {
   removePractice: (id: string) => void
   addAnnouncement: (a: Omit<Announcement, "id" | "date">) => void
   removeAnnouncement: (id: string) => void
-  addSheet: (s: Omit<Sheet, "id">) => void
+  addSheet: (s: Omit<Score, "id">) => Promise<void>
   removeSheet: (id: string) => void
   addDiary: (d: Omit<DiaryEntry, "id" | "date">) => void
   removeDiary: (id: string) => void
@@ -535,7 +541,7 @@ export function JazzProvider({ children }: { children: ReactNode }) {
         loadFromSupabase("practice_items", normalizePractice),
         loadFromSupabase("announcements", normalizeAnnouncement),
         loadFromSupabase("lost_items", normalizeLostItem),
-        loadFromSupabase("music_scores", normalizeSheet),
+        loadFromSupabase("scores", normalizeSheet),
         loadFromSupabase("diary_entries", normalizeDiary),
         loadFromSupabase("absence_reports", normalizeAbsence),
         loadFromSupabase("supply_requests", normalizeSupply),
@@ -811,19 +817,11 @@ export function JazzProvider({ children }: { children: ReactNode }) {
     [toast],
   )
   const addSheet = useCallback(
-    (s: Omit<Sheet, "id">) => {
+    async (s: Omit<Score, "id">) => {
       const sheet = { ...s, id: uid() }
+      const error = await persistToSupabase("scores", sheet)
+      if (error) throw error
       setSheets((prev) => [...prev, sheet])
-      void persistToSupabase("music_scores", {
-        id: sheet.id,
-        title: sheet.title,
-        composer: sheet.composer,
-        drive_link: sheet.driveLink,
-        youtube_url: sheet.youtubeUrl,
-        audio_direct_url: sheet.audioDirectUrl,
-        duration: sheet.duration,
-        has_audio: sheet.hasAudio,
-      })
       toast("楽譜・音源を追加しました")
     },
     [toast],
@@ -831,7 +829,7 @@ export function JazzProvider({ children }: { children: ReactNode }) {
   const removeSheet = useCallback(
     (id: string) => {
       setSheets((prev) => prev.filter((x) => x.id !== id))
-      void deleteFromSupabase("music_scores", id)
+      void deleteFromSupabase("scores", id)
       toast("楽譜・音源を削除しました", "danger")
     },
     [toast],
@@ -1034,7 +1032,7 @@ export function useJazz() {
       removePractice: () => {},
       addAnnouncement: () => {},
       removeAnnouncement: () => {},
-      addSheet: () => {},
+      addSheet: async () => {},
       removeSheet: () => {},
       addDiary: () => {},
       removeDiary: () => {},

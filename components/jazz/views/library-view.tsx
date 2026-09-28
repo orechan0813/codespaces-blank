@@ -164,10 +164,34 @@ export function LibraryView() {
                   {fmt(pos)} / {fmt(total)}
                 </span>
               </div>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+              <div className="relative mt-1 h-6">
                 <div
-                  className="h-full rounded-full bg-primary transition-[width] duration-1000 ease-linear"
-                  style={{ width: `${total ? Math.min((pos / total) * 100, 100) : 0}%` }}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 overflow-hidden rounded-full bg-muted"
+                >
+                  <div
+                    className="h-full rounded-full bg-primary"
+                    style={{ width: `${total ? Math.min((pos / total) * 100, 100) : 0}%` }}
+                  />
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={total || 0}
+                  step={0.1}
+                  value={Math.min(pos, total)}
+                  disabled={!total}
+                  aria-label="再生位置"
+                  aria-valuetext={`${fmt(pos)} / ${fmt(total)}`}
+                  onChange={(event) => {
+                    const nextPosition = Number(event.currentTarget.value)
+                    setPos(nextPosition)
+                    const audio = audioRef.current
+                    if (audio && Number.isFinite(nextPosition)) {
+                      audio.currentTime = nextPosition
+                    }
+                  }}
+                  className="absolute inset-0 z-10 h-6 w-full cursor-pointer appearance-none bg-transparent text-primary disabled:cursor-not-allowed [&::-moz-range-thumb]:size-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-current [&::-moz-range-track]:h-6 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-runnable-track]:h-6 [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:mt-[6px] [&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-current"
                 />
               </div>
             </div>

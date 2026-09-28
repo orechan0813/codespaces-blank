@@ -1,9 +1,5 @@
 import { NextResponse } from "next/server"
 
-const DISCORD_WEBHOOK_URL =
-  process.env.DISCORD_WEBHOOK_URL ||
-  "https://discord.com/api/webhooks/1524263755964350466/LPJ1JS9X7ytpnTN9XmtDSdBxXrsm_D_bkEkHM1DvtQKyuSNekQT9VmzAR_pBbS2qZWwn"
-
 type LostItemNotification = {
   kind?: "found-item" | "lost-report"
   title?: string
@@ -48,7 +44,12 @@ export async function POST(request: Request) {
     .join("\n")
 
   try {
-    const response = await fetch(DISCORD_WEBHOOK_URL, {
+    const webhookUrl = process.env.DISCORD_WEBHOOK_URL
+    if (!webhookUrl) {
+      return NextResponse.json({ ok: false, message: "通知設定がありません。" }, { status: 503 })
+    }
+
+    const response = await fetch(webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content, allowed_mentions: { parse: [] } }),

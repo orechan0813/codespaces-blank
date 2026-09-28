@@ -1,10 +1,6 @@
 import { createClient } from "@supabase/supabase-js"
 import { NextResponse } from "next/server"
 
-const DISCORD_WEBHOOK_URL =
-  process.env.DISCORD_WEBHOOK_URL ||
-  "https://discord.com/api/webhooks/1524263755964350466/LPJ1JS9X7ytpnTN9XmtDSdBxXrsm_D_bkEkHM1DvtQKyuSNekQT9VmzAR_pBbS2qZWwn"
-
 function getJstDateString(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Tokyo",
@@ -21,7 +17,12 @@ function getJstDateString(date = new Date()) {
 }
 
 async function sendDiscordReminder(content: string) {
-  const response = await fetch(DISCORD_WEBHOOK_URL, {
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL
+  if (!webhookUrl) {
+    throw new Error("Discord webhook is not configured")
+  }
+
+  const response = await fetch(webhookUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

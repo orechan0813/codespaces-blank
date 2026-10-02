@@ -7,6 +7,50 @@ create table if not exists public.members (
   is_admin boolean not null default false
 );
 
+alter table public.members add column if not exists is_advisor boolean not null default false;
+
+create table if not exists public.member_grade_promotions (
+  school_year integer primary key,
+  promoted_at timestamptz not null default now()
+);
+
+create or replace function public.promote_members_for_school_year(p_school_year integer)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  claimed_year integer;
+  promoted_count integer;
+begin
+  insert into public.member_grade_promotions (school_year)
+  values (p_school_year)
+  on conflict (school_year) do nothing
+  returning school_year into claimed_year;
+
+  if claimed_year is null then
+    return 0;
+  end if;
+
+  update public.members
+  set grade = case grade
+    when '1年' then '2年'
+    when '2年' then '3年'
+    when '3年' then '卒業'
+    else grade
+  end
+  where is_advisor = false
+    and grade in ('1年', '2年', '3年');
+
+  get diagnostics promoted_count = row_count;
+  return promoted_count;
+end;
+$$;
+
+revoke all on function public.promote_members_for_school_year(integer) from public, anon, authenticated;
+grant execute on function public.promote_members_for_school_year(integer) to service_role;
+
 create table if not exists public.club_events (
   id text primary key,
   date text not null,

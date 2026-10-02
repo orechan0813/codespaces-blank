@@ -14,7 +14,7 @@ import { getSupabaseSetupMessage, isSupabaseConfigured, supabase } from "@/lib/s
 
 /* ---------------------------------- types --------------------------------- */
 
-export type Grade = "1年" | "2年" | "3年"
+export type Grade = "1年" | "2年" | "3年" | "卒業"
 
 export type Member = {
   id: string
@@ -23,6 +23,7 @@ export type Member = {
   part1: string
   part2: string
   isAdmin: boolean
+  isAdvisor: boolean
 }
 
 export type EventType = "live" | "contest" | "practice"
@@ -152,11 +153,11 @@ const PARTS = [
 ]
 
 const seedMembers: Member[] = [
-  { id: uid(), name: "佐藤 陽菜", grade: "2年", part1: "Alto Sax", part2: "Vocal", isAdmin: true },
-  { id: uid(), name: "田中 蓮", grade: "3年", part1: "Trumpet", part2: "", isAdmin: true },
-  { id: uid(), name: "鈴木 美咲", grade: "1年", part1: "Piano", part2: "", isAdmin: false },
-  { id: uid(), name: "高橋 大輝", grade: "2年", part1: "Drums", part2: "", isAdmin: false },
-  { id: uid(), name: "テスト アカウント", grade: "1年", part1: "Bass", part2: "", isAdmin: false },
+  { id: uid(), name: "佐藤 陽菜", grade: "2年", part1: "Alto Sax", part2: "Vocal", isAdmin: true, isAdvisor: false },
+  { id: uid(), name: "田中 蓮", grade: "3年", part1: "Trumpet", part2: "", isAdmin: true, isAdvisor: false },
+  { id: uid(), name: "鈴木 美咲", grade: "1年", part1: "Piano", part2: "", isAdmin: false, isAdvisor: false },
+  { id: uid(), name: "高橋 大輝", grade: "2年", part1: "Drums", part2: "", isAdmin: false, isAdvisor: false },
+  { id: uid(), name: "テスト アカウント", grade: "1年", part1: "Bass", part2: "", isAdmin: false, isAdvisor: false },
 ]
 
 const seedEvents: ClubEvent[] = [
@@ -327,6 +328,7 @@ function normalizeMember(row: Record<string, unknown>): Member {
   const part1 = String(row.part1 ?? "")
   const part2 = String(row.part2 ?? "")
   const isAdmin = Boolean(row.isAdmin ?? row.is_admin ?? false)
+  const isAdvisor = Boolean(row.isAdvisor ?? row.is_advisor ?? false)
   return {
     id: String(row.id ?? uid()),
     name,
@@ -334,6 +336,7 @@ function normalizeMember(row: Record<string, unknown>): Member {
     part1,
     part2,
     isAdmin,
+    isAdvisor,
   }
 }
 
@@ -461,7 +464,7 @@ type Store = {
   toasts: Toast[]
   parts: string[]
   // auth
-  register: (m: Omit<Member, "id" | "isAdmin">) => void
+  register: (m: Omit<Member, "id" | "isAdmin" | "isAdvisor">) => void
   login: (id: string) => void
   logout: () => void
   enterAdminMode: (password: string) => boolean
@@ -485,7 +488,7 @@ type Store = {
   removeSheet: (id: string) => void
   addDiary: (d: Omit<DiaryEntry, "id" | "date">) => void
   removeDiary: (id: string) => void
-  toggleAdmin: (id: string) => void
+  updateMember: (id: string, updates: Partial<Pick<Member, "grade" | "isAdmin" | "isAdvisor">>) => void
   removeMember: (id: string) => void
   resolveAbsence: (id: string) => void
   resolveSupply: (id: string) => void
@@ -577,6 +580,7 @@ export function JazzProvider({ children }: { children: ReactNode }) {
                 part1: String(parsed.part1),
                 part2: String(parsed.part2 ?? ""),
                 isAdmin: Boolean(parsed.isAdmin),
+                isAdvisor: Boolean(parsed.isAdvisor),
               }
               setCurrentUser(restoredUser)
             }
@@ -594,8 +598,8 @@ export function JazzProvider({ children }: { children: ReactNode }) {
     }
   }, [toast])
 
-  const register = useCallback((m: Omit<Member, "id" | "isAdmin">) => {
-    const member: Member = { ...m, id: uid(), isAdmin: false }
+  const register = useCallback((m: Omit<Member, "id" | "isAdmin" | "isAdvisor">) => {
+    const member: Member = { ...m, id: uid(), isAdmin: false, isAdvisor: false }
     setMembers((prev) => [...prev, member])
     setCurrentUser(member)
     if (typeof window !== "undefined") {
@@ -608,6 +612,7 @@ export function JazzProvider({ children }: { children: ReactNode }) {
       part1: member.part1,
       part2: member.part2,
       is_admin: member.isAdmin,
+      is_advisor: member.isAdvisor,
     })
   }, [])
 
@@ -859,27 +864,26 @@ export function JazzProvider({ children }: { children: ReactNode }) {
     },
     [toast],
   )
-  const toggleAdmin = useCallback(
-    (id: string) => {
-      setMembers((prev) => {
-        const next = prev.map((m) => (m.id === id ? { ...m, isAdmin: !m.isAdmin } : m))
-        const target = next.find((m) => m.id === id)
-        if (target) {
-          void persistToSupabase("members", {
-            id: target.id,
-            name: target.name,
-            grade: target.grade,
-            part1: target.part1,
-            part2: target.part2,
-            is_admin: target.isAdmin,
-          })
-        }
-        return next
+  const updateMember = useCallback(
+    (id: string, updates: Partial<Pick<Member, "grade" | "isAdmin" | "isAdvisor">>) => {
+      const target = members.find((member) => member.id === id)
+      if (!target) return
+      const updated = { ...target, ...updates }
+      setMembers((prev) => prev.map((member) => (member.id === id ? updated : member)))
+      setCurrentUser((user) => (user?.id === id ? updated : user))
+      void persistToSupabase("members", {
+        id: updated.id,
+        name: updated.name,
+        grade: updated.grade,
+        part1: updated.part1,
+        part2: updated.part2,
+        is_admin: updated.isAdmin,
+        is_advisor: updated.isAdvisor,
+      }).then((error) => {
+        toast(error ? "メンバー情報を保存できませんでした" : "メンバー情報を更新しました", error ? "danger" : "gold")
       })
-      setCurrentUser((cu) => (cu && cu.id === id ? { ...cu, isAdmin: !cu.isAdmin } : cu))
-      toast("権限を更新しました")
     },
-    [toast],
+    [members, toast],
   )
   const removeMember = useCallback(
     (id: string) => {
@@ -951,7 +955,7 @@ export function JazzProvider({ children }: { children: ReactNode }) {
       removeSheet,
       addDiary,
       removeDiary,
-      toggleAdmin,
+      updateMember,
       removeMember,
       resolveAbsence,
       resolveSupply,
@@ -989,7 +993,7 @@ export function JazzProvider({ children }: { children: ReactNode }) {
       removeSheet,
       addDiary,
       removeDiary,
-      toggleAdmin,
+      updateMember,
       removeMember,
       resolveAbsence,
       resolveSupply,
@@ -1038,7 +1042,7 @@ export function useJazz() {
       removeSheet: () => {},
       addDiary: () => {},
       removeDiary: () => {},
-      toggleAdmin: () => {},
+      updateMember: () => {},
       removeMember: () => {},
       resolveAbsence: () => {},
       resolveSupply: () => {},

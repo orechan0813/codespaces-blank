@@ -17,6 +17,7 @@ import {
   useJazz,
   formatJPDate,
   uploadScoreAudio,
+  type Grade,
   type EventType,
 } from "@/lib/jazz-store"
 import { Panel, SectionHeading, Tag, fieldClass, labelClass } from "@/components/jazz/primitives"
@@ -27,6 +28,7 @@ import { cn } from "@/lib/utils"
 const ADMIN_PASSWORD = "jazz2025"
 
 type AdminTab = "schedule" | "announce" | "library" | "diary" | "inbox" | "members"
+const MEMBER_GRADES: Grade[] = ["1年", "2年", "3年", "卒業"]
 
 export function AdminView() {
   const [unlocked, setUnlocked] = useState(false)
@@ -507,7 +509,7 @@ function InboxAdmin() {
 }
 
 function MembersAdmin() {
-  const { members, currentUser, toggleAdmin, removeMember } = useJazz()
+  const { members, currentUser, updateMember, removeMember } = useJazz()
 
   return (
     <Panel>
@@ -519,7 +521,7 @@ function MembersAdmin() {
         {members.map((m) => (
           <div
             key={m.id}
-            className="flex items-center gap-3 rounded-xl border border-border bg-background/40 px-3 py-2.5"
+            className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-background/40 px-3 py-2.5"
           >
             <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
               {m.name.replace(/\s/g, "").slice(0, 2)}
@@ -531,11 +533,24 @@ function MembersAdmin() {
               </p>
               <p className="truncate text-xs text-muted-foreground">
                 {m.grade} / {m.part1}{m.part2 ? ` · ${m.part2}` : ""}
+                {m.isAdvisor ? " · 顧問" : ""}
               </p>
             </div>
+            <select
+              aria-label={`${m.name}の学年`}
+              className={cn(fieldClass, "h-9 w-24 py-1 text-xs")}
+              value={m.grade}
+              onChange={(event) => updateMember(m.id, { grade: event.target.value as Grade })}
+            >
+              {MEMBER_GRADES.map((grade) => <option key={grade} value={grade}>{grade}</option>)}
+            </select>
             <label className="flex cursor-pointer items-center gap-1.5 text-[0.7rem] text-muted-foreground">
               <span className="hidden sm:inline">管理者</span>
-              <Toggle checked={m.isAdmin} onChange={() => toggleAdmin(m.id)} />
+              <Toggle checked={m.isAdmin} onChange={() => updateMember(m.id, { isAdmin: !m.isAdmin })} />
+            </label>
+            <label className="flex cursor-pointer items-center gap-1.5 text-[0.7rem] text-muted-foreground">
+              <span>顧問</span>
+              <Toggle checked={m.isAdvisor} onChange={() => updateMember(m.id, { isAdvisor: !m.isAdvisor })} />
             </label>
             <button
               onClick={() => removeMember(m.id)}

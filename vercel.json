@@ -3,6 +3,10 @@
     {
       "path": "/api/remind",
       "schedule": "0 23 * * *"
+    },
+    {
+      "path": "/api/promote-members",
+      "schedule": "5 15 1 4 *"
     }
   ]
 }

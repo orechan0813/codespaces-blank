@@ -28,7 +28,7 @@ import { cn } from "@/lib/utils"
 const ADMIN_PASSWORD = "jazz2025"
 
 type AdminTab = "schedule" | "announce" | "library" | "diary" | "inbox" | "members"
-const MEMBER_GRADES: Grade[] = ["1年", "2年", "3年", "卒業"]
+const MEMBER_GRADES: Grade[] = ["1年", "2年", "3年"]
 
 export function AdminView() {
   const [unlocked, setUnlocked] = useState(false)
@@ -532,8 +532,7 @@ function MembersAdmin() {
                 {currentUser?.id === m.id && <span className="ml-1 text-[0.65rem] text-muted-foreground">(自分)</span>}
               </p>
               <p className="truncate text-xs text-muted-foreground">
-                {m.grade} / {m.part1}{m.part2 ? ` · ${m.part2}` : ""}
-                {m.isAdvisor ? " · 顧問" : ""}
+                {m.grade} / {formatMemberParts(m.part1, m.part2)}
               </p>
             </div>
             <select
@@ -565,6 +564,14 @@ function MembersAdmin() {
       </div>
     </Panel>
   )
+}
+
+function formatMemberParts(part1: string, part2: string) {
+  const roleLabel = /^(顧問|管理者|advisor|admin)$/i
+  const parts = [part1, part2]
+    .map((part) => part.trim())
+    .filter((part) => part && !roleLabel.test(part))
+  return parts.length > 0 ? parts.join(" · ") : "未設定"
 }
 
 /* ------------------------------ small helpers ----------------------------- */

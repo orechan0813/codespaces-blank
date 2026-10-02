@@ -14,7 +14,7 @@ import { getSupabaseSetupMessage, isSupabaseConfigured, supabase } from "@/lib/s
 
 /* ---------------------------------- types --------------------------------- */
 
-export type Grade = "1年" | "2年" | "3年" | "卒業"
+export type Grade = "1年" | "2年" | "3年" 
 
 export type Member = {
   id: string
@@ -24,6 +24,16 @@ export type Member = {
   part2: string
   isAdmin: boolean
   isAdvisor: boolean
+}
+
+type MemberRow = {
+  id: string
+  name: string
+  grade: string
+  part1: string
+  part2: string
+  is_admin: boolean
+  is_advisor: boolean
 }
 
 export type EventType = "live" | "contest" | "practice"
@@ -325,10 +335,16 @@ export async function uploadScoreAudio(file: File) {
 function normalizeMember(row: Record<string, unknown>): Member {
   const name = String(row.name ?? "")
   const grade = (row.grade as Grade) ?? "1年"
-  const part1 = String(row.part1 ?? "")
-  const part2 = String(row.part2 ?? "")
-  const isAdmin = Boolean(row.isAdmin ?? row.is_admin ?? false)
-  const isAdvisor = Boolean(row.isAdvisor ?? row.is_advisor ?? false)
+  const rawPart1 = String(row.part1 ?? "").trim()
+  const rawPart2 = String(row.part2 ?? "").trim()
+  const isRoleLabel = (value: string) => /^(顧問|管理者|advisor|admin)$/i.test(value)
+  const legacyRoles = [rawPart1, rawPart2]
+  const isLegacyAdvisor = legacyRoles.includes("顧問")
+  const isLegacyAdmin = legacyRoles.some((value) => /^(管理者|admin)$/i.test(value))
+  const part1 = isRoleLabel(rawPart1) ? "" : rawPart1
+  const part2 = isRoleLabel(rawPart2) ? "" : rawPart2
+  const isAdmin = Boolean(row.isAdmin ?? row.is_admin ?? false) || isLegacyAdmin
+  const isAdvisor = Boolean(row.isAdvisor ?? row.is_advisor ?? false) || isLegacyAdvisor
   return {
     id: String(row.id ?? uid()),
     name,
@@ -337,6 +353,18 @@ function normalizeMember(row: Record<string, unknown>): Member {
     part2,
     isAdmin,
     isAdvisor,
+  }
+}
+
+function toMemberRow(member: Member): MemberRow {
+  return {
+    id: member.id,
+    name: member.name,
+    grade: member.grade,
+    part1: member.part1,
+    part2: member.part2,
+    is_admin: member.isAdmin,
+    is_advisor: member.isAdvisor,
   }
 }
 
@@ -605,15 +633,7 @@ export function JazzProvider({ children }: { children: ReactNode }) {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(member))
     }
-    void persistToSupabase("members", {
-      id: member.id,
-      name: member.name,
-      grade: member.grade,
-      part1: member.part1,
-      part2: member.part2,
-      is_admin: member.isAdmin,
-      is_advisor: member.isAdvisor,
-    })
+    void persistToSupabase("members", toMemberRow(member))
   }, [])
 
   const login = useCallback(
@@ -871,16 +891,14 @@ export function JazzProvider({ children }: { children: ReactNode }) {
       const updated = { ...target, ...updates }
       setMembers((prev) => prev.map((member) => (member.id === id ? updated : member)))
       setCurrentUser((user) => (user?.id === id ? updated : user))
-      void persistToSupabase("members", {
-        id: updated.id,
-        name: updated.name,
-        grade: updated.grade,
-        part1: updated.part1,
-        part2: updated.part2,
-        is_admin: updated.isAdmin,
-        is_advisor: updated.isAdvisor,
-      }).then((error) => {
-        toast(error ? "メンバー情報を保存できませんでした" : "メンバー情報を更新しました", error ? "danger" : "gold")
+      void persistToSupabase("members", toMemberRow(updated)).then((error) => {
+        const missingAdvisorColumn = error?.message.toLowerCase().includes("is_advisor")
+        const message = missingAdvisorColumn
+          ? "Supabaseにis_advisor列がありません。supabase-schema.sqlのALTERを実行してください。"
+          : error
+            ? "メンバー情報を保存できませんでした"
+            : "メンバー情報を更新しました"
+        toast(message, error ? "danger" : "gold")
       })
     },
     [members, toast],

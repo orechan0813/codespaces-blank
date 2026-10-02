@@ -37,7 +37,6 @@ begin
   set grade = case grade
     when '1年' then '2年'
     when '2年' then '3年'
-    when '3年' then '卒業'
     else grade
   end
   where is_advisor = false

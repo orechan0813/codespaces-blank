@@ -375,7 +375,7 @@ function LibraryAdmin() {
 
 function DiaryAdmin() {
   const { diary, addDiary, removeDiary } = useJazz()
-  const [author, setAuthor] = useState("顧問 森田")
+  const [author, setAuthor] = useState("顧問")
   const [title, setTitle] = useState("")
   const [body, setBody] = useState("")
 
